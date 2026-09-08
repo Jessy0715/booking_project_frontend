@@ -1,0 +1,114 @@
+:root {
+  --bg:           oklch(0.97 0.008 75);
+  --surface:      #ffffff;
+  --border:       oklch(0.88 0.01 75);
+  --border-light: oklch(0.93 0.006 75);
+  --text:         oklch(0.18 0.01 75);
+  --text-secondary: oklch(0.48 0.01 75);
+  --text-muted:   oklch(0.65 0.01 75);
+  --accent:       oklch(0.52 0.13 42);
+  --accent-light: oklch(0.94 0.04 42);
+  --accent-hover: oklch(0.45 0.13 42);
+  --green:        oklch(0.58 0.1 145);
+  --green-bg:     oklch(0.95 0.04 145);
+  --blue:         oklch(0.55 0.12 240);
+  --blue-bg:      oklch(0.95 0.04 240);
+  --shadow-sm:    0 1px 3px oklch(0.5 0.01 75 / 0.08);
+  --shadow-md:    0 4px 16px oklch(0.5 0.01 75 / 0.1);
+  --shadow-lg:    0 8px 32px oklch(0.5 0.01 75 / 0.12);
+  --r:            10px;
+  --font-sans:    'Noto Sans TC', sans-serif;
+  --font-serif:   'Noto Serif TC', serif;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+body {
+  background: var(--bg);
+  font-family: var(--font-sans);
+  color: var(--text);
+}
+
+/* ── Mobile overrides ────────────────────── */
+@media (max-width: 767px) {
+  /* Hero 區縮小 */
+  section[style*="height: 260"] { height: 180px !important; }
+  section[style*="height: 200"] { height: 160px !important; }
+
+  /* Hero 文字縮小 */
+  section h1 { font-size: 20px !important; }
+
+  /* Antd Calendar 縮排 */
+  .ant-picker-calendar { padding: 8px !important; }
+  .ant-picker-calendar-date { min-height: 56px !important; }
+  .ant-picker-calendar-date-value { font-size: 11px !important; }
+  .cal-chip { font-size: 9px !important; max-width: 72px !important; }
+
+  /* Antd Modal 全寬 */
+  .ant-modal { max-width: calc(100vw - 24px) !important; margin: 12px auto !important; }
+  .ant-modal-content { border-radius: 10px !important; }
+
+  /* 避免橫向溢出 */
+  body { overflow-x: hidden; }
+}
+
+/* ── Header 登出按鈕 ─────────────────────── */
+.nav-logout-btn {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  background: transparent;
+  transition: border-color 0.15s, color 0.15s;
+  font-family: var(--font-sans);
+}
+.nav-logout-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── 場地卡片預約按鈕 ─────────────────────── */
+.room-book-btn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 7px;
+  padding: 7px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: background 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.room-book-btn:hover { background: var(--accent-hover); }
+
+/* ── 分頁按鈕 ────────────────────────────── */
+.pg-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.pg-btn:disabled { color: var(--text-muted); opacity: 0.5; cursor: default; }
+.pg-btn.active   { background: var(--accent); border-color: var(--accent); color: white; }

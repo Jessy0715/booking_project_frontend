@@ -1,0 +1,99 @@
+/* ── Ant Design Calendar 覆蓋 ─────────────────────────────── */
+
+.ant-picker-calendar.ant-picker-calendar-full .ant-picker-calendar-date-today {
+  border-color: var(--accent) !important;
+}
+
+.ant-picker-calendar.ant-picker-calendar-full
+  .ant-picker-cell-in-view.ant-picker-cell-selected
+  .ant-picker-calendar-date {
+  background: var(--accent-light) !important;
+}
+
+.ant-picker-calendar.ant-picker-calendar-full
+  .ant-picker-cell-selected
+  .ant-picker-calendar-date
+  .ant-picker-calendar-date-value {
+  color: var(--accent) !important;
+}
+
+.ant-picker-calendar
+  .ant-picker-cell-in-view.ant-picker-cell-selected:not(.ant-picker-cell-disabled)
+  .ant-picker-cell-inner {
+  background: var(--accent);
+}
+
+.ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled) {
+  color: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+.ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled)::before {
+  background: var(--accent) !important;
+}
+.ant-radio-button-wrapper:hover {
+  color: var(--accent) !important;
+}
+
+.ant-picker-calendar {
+  background: var(--surface) !important;
+  border-radius: var(--r) !important;
+  font-family: var(--font-sans) !important;
+}
+
+/* ── 預約 Chip（時段色）─────────────────────────────────── */
+.cal-chip {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 120px;
+  font-size: 10px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  margin-bottom: 2px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: opacity 0.1s;
+  line-height: 1.5;
+}
+.cal-chip:hover { opacity: 0.75; }
+
+.cal-chip-morning   { background: var(--accent-light); color: var(--accent); }
+.cal-chip-afternoon { background: var(--blue-bg);      color: var(--blue); }
+.cal-chip-night     { background: var(--green-bg);     color: var(--green); }
+
+/* ── 行動版色點 ─────────────────────────────────────────── */
+.cal-dots {
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+  padding-top: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.cal-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  transition: transform 0.1s;
+}
+.cal-dot:hover { transform: scale(1.4); }
+.cal-dot-more {
+  font-size: 8px;
+  color: var(--text-muted);
+  line-height: 1;
+  font-family: var(--font-sans);
+}
+
+/* ── Mobile 月曆格子補強 ─────────────────────────────────── */
+@media (max-width: 767px) {
+  .ant-picker-calendar-date-content {
+    min-height: 20px !important;
+    overflow: visible !important;
+  }
+  .ant-picker-calendar-date {
+    padding: 4px 2px !important;
+  }
+}

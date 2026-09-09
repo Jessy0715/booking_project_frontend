@@ -10,6 +10,7 @@ import dayjs from "dayjs";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 
+// eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
 
 const TIME_SLOT_OPTIONS = [
@@ -32,20 +33,25 @@ const modalStyles = {
 
 const RoomReserve = () => {
   const navigate = useNavigate();
+  // eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
   const location = useLocation();
   const [form] = Form.useForm();
   const { isMobile } = useBreakpoint();
   const isAdmin = JSON.parse(localStorage.getItem("user") || "{}").role === "admin";
 
   const [isModalOpen, setIsModalOpen]       = useState(false);
+  // eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
   const [rooms, setRooms]                   = useState([]);
   const [submitting, setSubmitting]         = useState(false);
+  // eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [notif, setNotif]                   = useState({ open: false, message: "", type: "success" });
+  // eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
   const [allBookings, setAllBookings]       = useState([]);
   const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [selectedDate, setSelectedDate]     = useState(null);
 
+  // eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
   const showNotif = (message, type = "success") => {
     setNotif({ open: true, message, type });
     setTimeout(() => setNotif(n => ({ ...n, open: false })), 4500);
@@ -53,28 +59,30 @@ const RoomReserve = () => {
 
   // ── 取得所有預約（衝突判斷） ─────────────────────────────────────
   useEffect(() => {
-    fetch(`${API_URL}/api/bookings`)
-      .then(r => r.json())
-      .then(j => { if (j.success) setAllBookings(j.data); })
-      .catch(() => {});
+    // 後端尚未啟動，API 呼叫先註解
+    // fetch(`${API_URL}/api/bookings`)
+    //   .then(r => r.json())
+    //   .then(j => { if (j.success) setAllBookings(j.data); })
+    //   .catch(() => {});
   }, [refreshTrigger]);
 
   // ── 取得場地清單 ──────────────────────────────────────────────
   useEffect(() => {
-    fetch(`${API_URL}/api/rooms?pageSize=100`)
-      .then(r => r.json())
-      .then(j => {
-        if (j.success) {
-          setRooms(j.data.map(r => ({ value: r.id, label: r.title })));
-          const roomId = location.state?.roomId;
-          if (roomId) {
-            form.setFieldsValue({ roomId });
-            setSelectedRoomId(roomId);
-            setIsModalOpen(true);
-          }
-        }
-      })
-      .catch(() => {});
+    // 後端尚未啟動，API 呼叫先註解
+    // fetch(`${API_URL}/api/rooms?pageSize=100`)
+    //   .then(r => r.json())
+    //   .then(j => {
+    //     if (j.success) {
+    //       setRooms(j.data.map(r => ({ value: r.id, label: r.title })));
+    //       const roomId = location.state?.roomId;
+    //       if (roomId) {
+    //         form.setFieldsValue({ roomId });
+    //         setSelectedRoomId(roomId);
+    //         setIsModalOpen(true);
+    //       }
+    //     }
+    //   })
+    //   .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -117,30 +125,31 @@ const RoomReserve = () => {
 
   const handleSubmit = async () => {
     try {
-      const values = await form.validateFields();
+      await form.validateFields();
       setSubmitting(true);
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const payload = {
-        roomId:   values.roomId,
-        userId:   user.id || null,
-        userName: values.userName,
-        date:     values.date.format("YYYY-MM-DD"),
-        timeSlot: values.timeSlot,
-        reason:   values.reason || "",
-      };
-      const res  = await fetch(`${API_URL}/api/bookings`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const json = await res.json();
-      if (json.success) {
-        setIsModalOpen(false);
-        form.resetFields();
-        setRefreshTrigger(n => n + 1);
-        showNotif("預約送出成功！等待審核中。", "success");
-      } else {
-        showNotif(json.message || "預約失敗", "error");
-      }
+      // 後端尚未啟動，API 呼叫先註解
+      // const user = JSON.parse(localStorage.getItem("user") || "{}");
+      // const payload = {
+      //   roomId:   values.roomId,
+      //   userId:   user.id || null,
+      //   userName: values.userName,
+      //   date:     values.date.format("YYYY-MM-DD"),
+      //   timeSlot: values.timeSlot,
+      //   reason:   values.reason || "",
+      // };
+      // const res  = await fetch(`${API_URL}/api/bookings`, {
+      //   method: "POST", headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify(payload),
+      // });
+      // const json = await res.json();
+      // if (json.success) {
+      //   setIsModalOpen(false);
+      //   form.resetFields();
+      //   setRefreshTrigger(n => n + 1);
+      //   showNotif("預約送出成功！等待審核中。", "success");
+      // } else {
+      //   showNotif(json.message || "預約失敗", "error");
+      // }
     } catch { /* form validation */ } finally {
       setSubmitting(false);
     }

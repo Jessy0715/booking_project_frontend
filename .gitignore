@@ -23,11 +23,5 @@ yarn-debug.log*
 yarn-error.log*
 
 
-# server
-/server/node_modules
-/server/*.db
-/server/*.db-shm
-/server/*.db-wal
-
 # specs / internal docs
 /src/specs

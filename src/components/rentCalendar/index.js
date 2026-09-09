@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 import "./index.css";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 
+// eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
 
 const TIME_SLOT_LABEL = {
@@ -41,6 +42,7 @@ const modalStyles = {
 
 const RentCalendar = ({ onDateClick, refreshTrigger }) => {
   const { isMobile } = useBreakpoint();
+  // eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
   const [bookings, setBookings]       = useState([]);
   const [loading, setLoading]         = useState(false);
   const [dayOverview, setDayOverview] = useState({ open: false, date: "", list: [], isPast: false });
@@ -53,18 +55,20 @@ const RentCalendar = ({ onDateClick, refreshTrigger }) => {
 
   const fetchBookings = useCallback(async () => {
     setLoading(true);
-    try {
-      const url  = isAdmin
-        ? `${API_URL}/api/bookings`
-        : `${API_URL}/api/bookings?status=approved`;
-      const res  = await fetch(url);
-      const json = await res.json();
-      if (json.success) setBookings(json.data);
-    } catch (err) {
-      console.error("無法取得預約資料", err);
-    } finally {
-      setLoading(false);
-    }
+    // 後端尚未啟動，API 呼叫先註解
+    // try {
+    //   const url  = isAdmin
+    //     ? `${API_URL}/api/bookings`
+    //     : `${API_URL}/api/bookings?status=approved`;
+    //   const res  = await fetch(url);
+    //   const json = await res.json();
+    //   if (json.success) setBookings(json.data);
+    // } catch (err) {
+    //   console.error("無法取得預約資料", err);
+    // } finally {
+    //   setLoading(false);
+    // }
+    setLoading(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

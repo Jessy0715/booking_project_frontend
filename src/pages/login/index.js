@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { IconButton, InputAdornment, OutlinedInput } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 
+// eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
 
 const fieldStyle = {
@@ -49,33 +50,36 @@ const Login = () => {
 
     setLoading(true);
     setErrorMsg("");
-    try {
-      const res  = await fetch(`${API_URL}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ account, password }),
-      });
-      const json = await res.json();
-      if (!json.success) { setErrorMsg("帳號或密碼錯誤"); return; }
+    // 後端尚未啟動，API 呼叫先註解
+    // try {
+    //   const res  = await fetch(`${API_URL}/api/auth/login`, {
+    //     method: "POST",
+    //     headers: { "Content-Type": "application/json" },
+    //     body: JSON.stringify({ account, password }),
+    //   });
+    //   const json = await res.json();
+    //   if (!json.success) { setErrorMsg("帳號或密碼錯誤"); return; }
 
-      const isAdminTab  = loginRole === 1;
-      const isAdminRole = json.data.role === "admin";
-      if (isAdminTab && !isAdminRole) {
-        setErrorMsg("此帳號非管理員，請使用「一般會員」頁籤登入");
-        return;
-      }
-      if (!isAdminTab && isAdminRole) {
-        setErrorMsg("此帳號為管理員，請使用「管理員」頁籤登入");
-        return;
-      }
+    //   const isAdminTab  = loginRole === 1;
+    //   const isAdminRole = json.data.role === "admin";
+    //   if (isAdminTab && !isAdminRole) {
+    //     setErrorMsg("此帳號非管理員，請使用「一般會員」頁籤登入");
+    //     return;
+    //   }
+    //   if (!isAdminTab && isAdminRole) {
+    //     setErrorMsg("此帳號為管理員，請使用「管理員」頁籤登入");
+    //     return;
+    //   }
 
-      localStorage.setItem("user", JSON.stringify(json.data));
-      navigate(isAdminRole ? "/admin" : "/roomInfo");
-    } catch {
-      setErrorMsg("無法連線至伺服器");
-    } finally {
-      setLoading(false);
-    }
+    //   localStorage.setItem("user", JSON.stringify(json.data));
+    //   navigate(isAdminRole ? "/admin" : "/roomInfo");
+    // } catch {
+    //   setErrorMsg("無法連線至伺服器");
+    // } finally {
+    //   setLoading(false);
+    // }
+    setLoading(false);
+    navigate("/admin");
   };
 
   return (

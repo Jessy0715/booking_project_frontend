@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 
+// eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
 
 const TIME_SLOT_LABEL = { morning: "上午 09:00–12:00", afternoon: "下午 13:00–17:00", night: "晚上 18:00–21:00" };
@@ -39,12 +40,14 @@ const MyBookings = () => {
   const { isMobile } = useBreakpoint();
   const user      = JSON.parse(localStorage.getItem("user") || "{}");
 
+  // eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
   const [bookings, setBookings]       = useState([]);
   const [loading, setLoading]         = useState(false);
   const [activeTab, setActiveTab]     = useState("all");
   const [confirmingId, setConfirmingId] = useState(null); // 正在確認取消的預約 id
   const [toast, setToast]             = useState({ show: false, msg: "", ok: true });
 
+  // eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
   const showToast = (msg, ok = true) => {
     setToast({ show: true, msg, ok });
     setTimeout(() => setToast((t) => ({ ...t, show: false })), 3000);
@@ -53,15 +56,17 @@ const MyBookings = () => {
   const fetchBookings = useCallback(async () => {
     if (!user.id) return;
     setLoading(true);
-    try {
-      const res  = await fetch(`${API_URL}/api/bookings?userId=${user.id}`);
-      const json = await res.json();
-      if (json.success) setBookings(json.data);
-    } catch {
-      showToast("無法取得預約資料", false);
-    } finally {
-      setLoading(false);
-    }
+    // 後端尚未啟動，API 呼叫先註解
+    // try {
+    //   const res  = await fetch(`${API_URL}/api/bookings?userId=${user.id}`);
+    //   const json = await res.json();
+    //   if (json.success) setBookings(json.data);
+    // } catch {
+    //   showToast("無法取得預約資料", false);
+    // } finally {
+    //   setLoading(false);
+    // }
+    setLoading(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id]);
 
@@ -71,19 +76,20 @@ const MyBookings = () => {
   }, [fetchBookings, navigate, user.id]);
 
   const handleCancel = async (id) => {
-    try {
-      const res  = await fetch(`${API_URL}/api/bookings/${id}`, { method: "DELETE" });
-      const json = await res.json();
-      if (json.success) {
-        setConfirmingId(null);
-        showToast("預約已取消");
-        fetchBookings();
-      } else {
-        showToast(json.message || "取消失敗", false);
-      }
-    } catch {
-      showToast("無法連線至伺服器", false);
-    }
+    // 後端尚未啟動，API 呼叫先註解
+    // try {
+    //   const res  = await fetch(`${API_URL}/api/bookings/${id}`, { method: "DELETE" });
+    //   const json = await res.json();
+    //   if (json.success) {
+    //     setConfirmingId(null);
+    //     showToast("預約已取消");
+    //     fetchBookings();
+    //   } else {
+    //     showToast(json.message || "取消失敗", false);
+    //   }
+    // } catch {
+    //   showToast("無法連線至伺服器", false);
+    // }
   };
 
   const filtered = activeTab === "all"

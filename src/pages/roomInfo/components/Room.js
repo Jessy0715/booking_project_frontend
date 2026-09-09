@@ -3,6 +3,7 @@ import { Skeleton, Alert } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 
+// eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
 const API_URL  = process.env.REACT_APP_API_URL || "http://localhost:3001";
 const PAGE_SIZE = 5;
 
@@ -29,6 +30,7 @@ const getMinPrice = (room) => {
 const Room = () => {
   const navigate = useNavigate();
   const { isMobile } = useBreakpoint();
+  // eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
   const [rooms, setRooms]       = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
@@ -44,16 +46,18 @@ const Room = () => {
     const fetchRooms = async () => {
       setLoading(true);
       setError(null);
-      try {
-        const res  = await fetch(`${API_URL}/api/rooms?pageSize=100`);
-        const json = await res.json();
-        if (!json.success) throw new Error();
-        setRooms(json.data);
-      } catch {
-        setError("無法連線至伺服器，請確認後端是否啟動。");
-      } finally {
-        setLoading(false);
-      }
+      // 後端尚未啟動，API 呼叫先註解
+      // try {
+      //   const res  = await fetch(`${API_URL}/api/rooms?pageSize=100`);
+      //   const json = await res.json();
+      //   if (!json.success) throw new Error();
+      //   setRooms(json.data);
+      // } catch {
+      //   setError("無法連線至伺服器，請確認後端是否啟動。");
+      // } finally {
+      //   setLoading(false);
+      // }
+      setLoading(false);
     };
     fetchRooms();
   }, []);

@@ -9,6 +9,7 @@ import { Link } from "react-router-dom";
 import { Search as SearchIcon } from "@mui/icons-material";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 
+// eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
 
 const TIME_SLOT_LABEL = { morning: "上午", afternoon: "下午", night: "晚上" };
@@ -52,7 +53,9 @@ const Admin = () => {
   const { isMobile } = useBreakpoint();
   const [activeTab, setActiveTab]     = useState(0);
   const [filter, setFilter]           = useState("");
+  // eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
   const [rooms, setRooms]             = useState([]);
+  // eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
   const [bookings, setBookings]       = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId]     = useState(null);
@@ -98,18 +101,20 @@ const Admin = () => {
   const showMsg = (message, severity = "success") => setSnackbar({ open: true, message, severity });
 
   const fetchRooms = async (keyword = "") => {
-    const url  = keyword
-      ? `${API_URL}/api/rooms?pageSize=100&keyword=${encodeURIComponent(keyword)}`
-      : `${API_URL}/api/rooms?pageSize=100`;
-    const res  = await fetch(url);
-    const json = await res.json();
-    if (json.success) setRooms(json.data);
+    // 後端尚未啟動，API 呼叫先註解
+    // const url  = keyword
+    //   ? `${API_URL}/api/rooms?pageSize=100&keyword=${encodeURIComponent(keyword)}`
+    //   : `${API_URL}/api/rooms?pageSize=100`;
+    // const res  = await fetch(url);
+    // const json = await res.json();
+    // if (json.success) setRooms(json.data);
   };
 
   const fetchBookings = async () => {
-    const res  = await fetch(`${API_URL}/api/bookings`);
-    const json = await res.json();
-    if (json.success) setBookings(json.data);
+    // 後端尚未啟動，API 呼叫先註解
+    // const res  = await fetch(`${API_URL}/api/bookings`);
+    // const json = await res.json();
+    // if (json.success) setBookings(json.data);
   };
 
   useEffect(() => { fetchRooms(); }, []);
@@ -124,38 +129,42 @@ const Admin = () => {
 
   const handleSave = async () => {
     if (!formValues.title) { showMsg("場地名稱為必填", "warning"); return; }
-    const body = { roomImg: formValues.roomImg, title: formValues.title, desc: formValues.desc, price: formValues.price };
-    const url    = editingId ? `${API_URL}/api/rooms/${editingId}` : `${API_URL}/api/rooms`;
-    const method = editingId ? "PUT" : "POST";
-    const res  = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    const json = await res.json();
-    if (json.success) {
-      setIsModalOpen(false); fetchRooms(filter);
-      showMsg(editingId ? "場地已更新" : "場地已新增");
-    } else showMsg(json.message || "操作失敗", "error");
+    // 後端尚未啟動，API 呼叫先註解
+    // const body = { roomImg: formValues.roomImg, title: formValues.title, desc: formValues.desc, price: formValues.price };
+    // const url    = editingId ? `${API_URL}/api/rooms/${editingId}` : `${API_URL}/api/rooms`;
+    // const method = editingId ? "PUT" : "POST";
+    // const res  = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    // const json = await res.json();
+    // if (json.success) {
+    //   setIsModalOpen(false); fetchRooms(filter);
+    //   showMsg(editingId ? "場地已更新" : "場地已新增");
+    // } else showMsg(json.message || "操作失敗", "error");
   };
 
   const handleDelete = async (id) => {
-    const res  = await fetch(`${API_URL}/api/rooms/${id}`, { method: "DELETE" });
-    const json = await res.json();
-    if (json.success) { fetchRooms(filter); showMsg("場地已刪除"); }
-    else showMsg(json.message || "刪除失敗", "error");
+    // 後端尚未啟動，API 呼叫先註解
+    // const res  = await fetch(`${API_URL}/api/rooms/${id}`, { method: "DELETE" });
+    // const json = await res.json();
+    // if (json.success) { fetchRooms(filter); showMsg("場地已刪除"); }
+    // else showMsg(json.message || "刪除失敗", "error");
   };
 
   const handleBatchDelete = async () => {
-    await Promise.all(selectedIds.map((id) => fetch(`${API_URL}/api/rooms/${id}`, { method: "DELETE" })));
-    setSelectedIds([]); fetchRooms(filter);
-    showMsg(`已刪除 ${selectedIds.length} 筆場地`);
+    // 後端尚未啟動，API 呼叫先註解
+    // await Promise.all(selectedIds.map((id) => fetch(`${API_URL}/api/rooms/${id}`, { method: "DELETE" })));
+    // setSelectedIds([]); fetchRooms(filter);
+    // showMsg(`已刪除 ${selectedIds.length} 筆場地`);
   };
 
   const handleReview = async (id, status) => {
-    const res  = await fetch(`${API_URL}/api/bookings/${id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    const json = await res.json();
-    if (json.success) { fetchBookings(); showMsg(status === "approved" ? "已核准" : "已拒絕"); }
-    else showMsg(json.message || "操作失敗", "error");
+    // 後端尚未啟動，API 呼叫先註解
+    // const res  = await fetch(`${API_URL}/api/bookings/${id}`, {
+    //   method: "PATCH", headers: { "Content-Type": "application/json" },
+    //   body: JSON.stringify({ status }),
+    // });
+    // const json = await res.json();
+    // if (json.success) { fetchBookings(); showMsg(status === "approved" ? "已核准" : "已拒絕"); }
+    // else showMsg(json.message || "操作失敗", "error");
   };
 
   const handleFormChange = (e) => {

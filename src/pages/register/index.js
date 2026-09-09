@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { IconButton, InputAdornment, OutlinedInput } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 
+// eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
 
 const fieldStyle = {
@@ -43,20 +44,22 @@ const Register = () => {
 
     setLoading(true);
     setErrorMsg("");
-    try {
-      const res  = await fetch(`${API_URL}/api/auth/register`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ account, password }),
-      });
-      const json = await res.json();
-      if (!json.success) { setErrorMsg(json.message || "註冊失敗"); return; }
-      navigate("/login");
-    } catch {
-      setErrorMsg("無法連線至伺服器");
-    } finally {
-      setLoading(false);
-    }
+    // 後端尚未啟動，API 呼叫先註解
+    // try {
+    //   const res  = await fetch(`${API_URL}/api/auth/register`, {
+    //     method:  "POST",
+    //     headers: { "Content-Type": "application/json" },
+    //     body:    JSON.stringify({ account, password }),
+    //   });
+    //   const json = await res.json();
+    //   if (!json.success) { setErrorMsg(json.message || "註冊失敗"); return; }
+    //   navigate("/login");
+    // } catch {
+    //   setErrorMsg("無法連線至伺服器");
+    // } finally {
+    //   setLoading(false);
+    // }
+    setLoading(false);
   };
 
   return (

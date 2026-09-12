@@ -1,6 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
+import { Provider } from "react-redux";
+import { store } from "./store";
 
 // antd
 
@@ -45,14 +47,16 @@ const bookingTheme = createTheme({
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
-    <BrowserRouter>
-      <GlobalStyle />
-      <ScopedCssBaseline>
-        <ThemeProvider theme={bookingTheme}>
-          <App />
-        </ThemeProvider>
-      </ScopedCssBaseline>
-    </BrowserRouter>
+    <Provider store={store}>
+      <BrowserRouter>
+        <GlobalStyle />
+        <ScopedCssBaseline>
+          <ThemeProvider theme={bookingTheme}>
+            <App />
+          </ThemeProvider>
+        </ScopedCssBaseline>
+      </BrowserRouter>
+    </Provider>
   </React.StrictMode>
 );
 

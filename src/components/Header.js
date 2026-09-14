@@ -43,8 +43,8 @@ const Header = () => {
 
   const navItems = isAdmin
     ? [
-        { path: "/admin",       label: "後台管理" },
-        { path: "/roomReserve", label: "預約月曆" },
+        { path: "/admin",         label: "後台管理" },
+        { path: "/adminCalendar", label: "檢視月曆" },
       ]
     : [
         { path: "/roomInfo",    label: "精選空間" },

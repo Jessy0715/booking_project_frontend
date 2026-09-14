@@ -8,11 +8,15 @@ interface AuthState {
   isLoggedIn: boolean
 }
 
+const storedUser = (() => {
+  try { return JSON.parse(localStorage.getItem('user') || 'null') } catch { return null }
+})()
+
 const initialState: AuthState = {
   token: localStorage.getItem('token'),
-  id: null,
-  account: null,
-  role: null,
+  id: storedUser?.id ?? null,
+  account: storedUser?.account ?? null,
+  role: storedUser?.role ?? null,
   isLoggedIn: !!localStorage.getItem('token'),
 }
 
@@ -31,6 +35,7 @@ const authSlice = createSlice({
       state.token = token
       state.isLoggedIn = true
       localStorage.setItem('token', token)
+      localStorage.setItem('user', JSON.stringify({ id, account, role }))
     },
     logout(state) {
       state.token = null
@@ -39,6 +44,7 @@ const authSlice = createSlice({
       state.role = null
       state.isLoggedIn = false
       localStorage.removeItem('token')
+      localStorage.removeItem('user')
     },
   },
 })

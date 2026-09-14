@@ -244,8 +244,8 @@ const Admin = () => {
           <h1 style={{ fontFamily: "var(--font-serif)", fontSize: 26, fontWeight: 400, letterSpacing: "0.06em", marginBottom: 12, lineHeight: 1.3 }}>
             後台管理系統
           </h1>
-          <Link to="/roomReserve" style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", textDecoration: "none", borderBottom: "1px solid rgba(255,255,255,0.28)", paddingBottom: 1 }}>
-            ← 前往月曆查看
+          <Link to="/adminCalendar" style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", textDecoration: "none", borderBottom: "1px solid rgba(255,255,255,0.28)", paddingBottom: 1 }}>
+            前往月曆查看 →
           </Link>
         </div>
       </section>

@@ -58,7 +58,7 @@ const RoomReserve = () => {
   useEffect(() => {
     const roomId = location.state?.roomId;
     if (roomId && roomsData) {
-      form.setFieldsValue({ roomId });
+      form.setFieldsValue({ roomId, userName: account || "" });
       setSelectedRoomId(roomId);
       setIsModalOpen(true);
     }
@@ -196,8 +196,8 @@ const RoomReserve = () => {
             boxShadow: "var(--shadow-sm)",
           }}>
             <RentCalendar
+              bookings={[]}
               onDateClick={handleDateClick}
-              refreshTrigger={refreshTrigger}
             />
           </div>
         </div>

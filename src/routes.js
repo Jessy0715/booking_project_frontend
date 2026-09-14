@@ -1,6 +1,7 @@
 import Login from "./pages/login";
 import Register from "./pages/register";
 import Admin from "./pages/admin";
+import AdminCalendar from "./pages/adminCalendar";
 import RoomInfo from "./pages/roomInfo";
 import RoomReserve from "./pages/roomReserve";
 import RentCalendar from "./components/rentCalendar";
@@ -21,6 +22,10 @@ const routes = [
   {
     path: "/admin",
     element: <Admin />,
+  },
+  {
+    path: "/adminCalendar",
+    element: <AdminCalendar />,
   },
   {
     path: "/roomInfo",

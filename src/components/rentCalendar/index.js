@@ -1,22 +1,13 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { Calendar, Modal, ConfigProvider, Tag, Spin, Button, List } from "antd";
 import dayjs from "dayjs";
 import "./index.css";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 
-// eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
-
 const TIME_SLOT_LABEL = {
   morning:   "上午",
   afternoon: "下午",
   night:     "晚上",
-};
-
-const STATUS_BADGE = {
-  pending:  "warning",
-  approved: "success",
-  rejected: "error",
 };
 
 const STATUS_TAG = {
@@ -25,11 +16,18 @@ const STATUS_TAG = {
   rejected: { color: "red",    text: "已拒絕" },
 };
 
-// 時段對應圓點顏色
-const DOT_COLOR = {
+// 一般模式：時段色（使用者月曆）
+const DOT_COLOR_SLOT = {
   morning:   "var(--accent)",
   afternoon: "var(--blue)",
   night:     "var(--green)",
+};
+
+// 管理模式：狀態色（viewOnly 月曆）
+const DOT_COLOR_STATUS = {
+  approved: "var(--green)",
+  pending:  "oklch(0.52 0.12 55)",
+  rejected: "oklch(0.62 0.14 15)",
 };
 
 const modalStyles = {
@@ -40,63 +38,44 @@ const modalStyles = {
   },
 };
 
-const RentCalendar = ({ onDateClick, refreshTrigger }) => {
+/**
+ * RentCalendar
+ *
+ * Props:
+ *   bookings      - 預約陣列（status 已 lowercase）；預設 []
+ *   viewOnly      - true = 管理員檢視模式（只讀，無新增）；預設 false
+ *   isLoading     - 載入中旗標；預設 false
+ *   onDateClick   - 使用者模式：點選未來日期時呼叫，帶入 "YYYY-MM-DD"
+ */
+const RentCalendar = ({ bookings = [], viewOnly = false, isLoading = false, onDateClick }) => {
   const { isMobile } = useBreakpoint();
-  // eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
-  const [bookings, setBookings]       = useState([]);
-  const [loading, setLoading]         = useState(false);
   const [dayOverview, setDayOverview] = useState({ open: false, date: "", list: [], isPast: false });
   const [detailModal, setDetailModal] = useState({ open: false, event: null });
-  const [calValue, setCalValue]       = useState(dayjs()); // 控制月份導覽
+  const [calValue, setCalValue]       = useState(dayjs());
   const eventClickedRef               = useRef(false);
-
-  const user    = JSON.parse(localStorage.getItem("user") || "{}");
-  const isAdmin = user.role === "admin";
-
-  const fetchBookings = useCallback(async () => {
-    setLoading(true);
-    // 後端尚未啟動，API 呼叫先註解
-    // try {
-    //   const url  = isAdmin
-    //     ? `${API_URL}/api/bookings`
-    //     : `${API_URL}/api/bookings?status=approved`;
-    //   const res  = await fetch(url);
-    //   const json = await res.json();
-    //   if (json.success) setBookings(json.data);
-    // } catch (err) {
-    //   console.error("無法取得預約資料", err);
-    // } finally {
-    //   setLoading(false);
-    // }
-    setLoading(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    fetchBookings();
-  }, [fetchBookings, refreshTrigger]);
 
   const getBookingsForDate = (date) => {
     const formatted = date.format("YYYY-MM-DD");
     return bookings.filter((b) => b.date === formatted);
   };
 
+  const openDayOverview = (date) => {
+    const isPast = date.isBefore(dayjs(), "day");
+    setDayOverview({ open: true, date: date.format("YYYY-MM-DD"), list: getBookingsForDate(date), isPast });
+  };
+
   const handleCalendarSelect = (date) => {
     if (eventClickedRef.current) { eventClickedRef.current = false; return; }
-
-    const isPast      = date.isBefore(dayjs(), "day");
-    const dayBookings = getBookingsForDate(date);
-
-    if (isAdmin) {
-      setDayOverview({ open: true, date: date.format("YYYY-MM-DD"), list: dayBookings, isPast });
+    if (viewOnly) {
+      openDayOverview(date);
     } else {
-      if (!isPast) {
+      if (!date.isBefore(dayjs(), "day")) {
         onDateClick && onDateClick(date.format("YYYY-MM-DD"));
       }
     }
   };
 
-  // ── 行動版自訂 Header（簡潔月份導覽）─────────────────────────
+  // ── 行動版 Header ──────────────────────────────────────────
   const mobileHeaderRender = ({ value, onChange }) => (
     <div style={{
       display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -108,11 +87,9 @@ const RentCalendar = ({ onDateClick, refreshTrigger }) => {
         onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.color = "var(--accent)"; }}
         onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-secondary)"; }}
       >‹</button>
-
       <span style={{ fontFamily: "var(--font-serif)", fontSize: 15, fontWeight: 500, letterSpacing: "0.06em", color: "var(--text)" }}>
         {value.year()} 年 {value.month() + 1} 月
       </span>
-
       <button
         onClick={() => { const v = value.add(1, "month"); onChange(v); setCalValue(v); }}
         style={{ width: 32, height: 32, border: "1px solid var(--border)", borderRadius: 7, background: "transparent", cursor: "pointer", fontSize: 16, color: "var(--text-secondary)", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}
@@ -122,7 +99,7 @@ const RentCalendar = ({ onDateClick, refreshTrigger }) => {
     </div>
   );
 
-  // ── Full cell render ─────────────────────────────────────────
+  // ── 日格 render ────────────────────────────────────────────
   const fullCellRender = (current, info) => {
     if (info.type !== "date") return info.originNode;
 
@@ -139,26 +116,29 @@ const RentCalendar = ({ onDateClick, refreshTrigger }) => {
           "ant-picker-calendar-date",
           isToday ? "ant-picker-calendar-date-today" : "",
         ].join(" ")}
-        style={isPast ? { opacity: 0.6 } : {}}
+        style={isPast && !viewOnly ? { opacity: 0.6 } : {}}
       >
         <div className="ant-picker-calendar-date-value">
           {current.date()}
         </div>
         <div className="ant-picker-calendar-date-content">
           {isMobile ? (
-            /* ── Mobile：色點 ───────────────────────────── */
             dayBookings.length > 0 && (
               <div className="cal-dots">
                 {dayBookings.slice(0, 3).map((b) => (
                   <span
                     key={b.id}
                     className="cal-dot"
-                    style={{ background: DOT_COLOR[b.timeSlot] }}
+                    style={{
+                      background: viewOnly
+                        ? (DOT_COLOR_STATUS[b.status] || "var(--text-muted)")
+                        : (DOT_COLOR_SLOT[b.timeSlot] || "var(--text-muted)"),
+                    }}
                     onMouseDown={(e) => { e.stopPropagation(); eventClickedRef.current = true; }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (isAdmin) {
-                        setDayOverview({ open: true, date: current.format("YYYY-MM-DD"), list: getBookingsForDate(current), isPast: current.isBefore(dayjs(), "day") });
+                      if (viewOnly) {
+                        openDayOverview(current);
                       } else {
                         setDetailModal({ open: true, event: b });
                       }
@@ -171,7 +151,6 @@ const RentCalendar = ({ onDateClick, refreshTrigger }) => {
               </div>
             )
           ) : (
-            /* ── Desktop：文字 Chip ──────────────────────── */
             dayBookings.length > 0 && (
               <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
                 {visible.map((b) => (
@@ -180,13 +159,13 @@ const RentCalendar = ({ onDateClick, refreshTrigger }) => {
                       onMouseDown={(e) => { e.stopPropagation(); eventClickedRef.current = true; }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (isAdmin) {
-                          setDayOverview({ open: true, date: current.format("YYYY-MM-DD"), list: getBookingsForDate(current), isPast: current.isBefore(dayjs(), "day") });
+                        if (viewOnly) {
+                          openDayOverview(current);
                         } else {
                           setDetailModal({ open: true, event: b });
                         }
                       }}
-                      className={`cal-chip cal-chip-${b.timeSlot}`}
+                      className={`cal-chip ${viewOnly ? `cal-chip-status-${b.status}` : `cal-chip-${b.timeSlot}`}`}
                     >
                       {TIME_SLOT_LABEL[b.timeSlot]} {b.roomTitle || ""}
                     </span>
@@ -207,15 +186,9 @@ const RentCalendar = ({ onDateClick, refreshTrigger }) => {
     );
   };
 
-  const readOnlyBadge = (
-    <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, marginLeft: 10, background: "oklch(0.94 0.01 75)", color: "var(--text-muted)", border: "1px solid var(--border)", fontWeight: 400, verticalAlign: "middle" }}>
-      唯讀
-    </span>
-  );
-
   return (
     <div style={{ width: "100%" }}>
-      <Spin spinning={loading}>
+      <Spin spinning={isLoading}>
         <Calendar
           value={calValue}
           onChange={setCalValue}
@@ -229,16 +202,12 @@ const RentCalendar = ({ onDateClick, refreshTrigger }) => {
       {/* 當日預約總覽 */}
       <ConfigProvider modal={{ styles: modalStyles }}>
         <Modal
-          title={
-            dayOverview.isPast
-              ? <span>{dayOverview.date} 的預約紀錄{readOnlyBadge}</span>
-              : `${dayOverview.date} 的預約狀況`
-          }
+          title={`${dayOverview.date} 的預約狀況`}
           open={dayOverview.open}
           onCancel={() => setDayOverview({ open: false, date: "", list: [], isPast: false })}
           width={isMobile ? "92vw" : 520}
           footer={
-            dayOverview.isPast ? null : (
+            viewOnly ? null : (
               <Button
                 type="primary"
                 style={{ backgroundColor: "#938C8C", borderColor: "#938C8C" }}
@@ -270,7 +239,7 @@ const RentCalendar = ({ onDateClick, refreshTrigger }) => {
                   <List.Item.Meta
                     title={
                       <span>
-                        <Tag color={STATUS_BADGE[b.status]}>{TIME_SLOT_LABEL[b.timeSlot]}</Tag>
+                        <Tag color={STATUS_TAG[b.status]?.color || "default"}>{TIME_SLOT_LABEL[b.timeSlot]}</Tag>
                         {b.roomTitle || "—"}
                       </span>
                     }
@@ -284,7 +253,7 @@ const RentCalendar = ({ onDateClick, refreshTrigger }) => {
         </Modal>
       </ConfigProvider>
 
-      {/* 單筆預約詳情 */}
+      {/* 單筆預約詳情（唯讀） */}
       <ConfigProvider modal={{ styles: modalStyles }}>
         <Modal
           title="預約詳情"
@@ -295,7 +264,7 @@ const RentCalendar = ({ onDateClick, refreshTrigger }) => {
           destroyOnClose
         >
           {detailModal.event && (
-            <div style={{ paddingLeft: "10px", lineHeight: "2.2" }}>
+            <div style={{ paddingLeft: "10px", lineHeight: "2.2", fontFamily: "var(--font-sans)", fontSize: 13 }}>
               <p>
                 <strong>狀態：</strong>
                 <Tag color={STATUS_TAG[detailModal.event.status]?.color}>

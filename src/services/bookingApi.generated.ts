@@ -1,31 +1,14 @@
 import { api } from "./emptyApi";
 const injectedRtkApi = api.injectEndpoints({
   endpoints: (build) => ({
-    getRooms: build.query<GetRoomsApiResponse, GetRoomsApiArg>({
-      query: (queryArg) => ({
-        url: `/api/rooms`,
-        params: {
-          page: queryArg.page,
-          pageSize: queryArg.pageSize,
-          keyword: queryArg.keyword,
-        },
-      }),
-    }),
-    createRoom: build.mutation<CreateRoomApiResponse, CreateRoomApiArg>({
-      query: (queryArg) => ({
-        url: `/api/rooms`,
-        method: "POST",
-        body: queryArg.body,
-      }),
-    }),
-    getRoomById: build.query<GetRoomByIdApiResponse, GetRoomByIdApiArg>({
+    getRoom: build.query<GetRoomApiResponse, GetRoomApiArg>({
       query: (queryArg) => ({ url: `/api/rooms/${queryArg.id}` }),
     }),
     updateRoom: build.mutation<UpdateRoomApiResponse, UpdateRoomApiArg>({
       query: (queryArg) => ({
         url: `/api/rooms/${queryArg.id}`,
         method: "PUT",
-        body: queryArg.body,
+        body: queryArg.roomCreateRequest,
       }),
     }),
     deleteRoom: build.mutation<DeleteRoomApiResponse, DeleteRoomApiArg>({
@@ -34,24 +17,33 @@ const injectedRtkApi = api.injectEndpoints({
         method: "DELETE",
       }),
     }),
-    getRoomSlots: build.query<GetRoomSlotsApiResponse, GetRoomSlotsApiArg>({
+    searchRooms: build.query<SearchRoomsApiResponse, SearchRoomsApiArg>({
       query: (queryArg) => ({
-        url: `/api/rooms/${queryArg.id}/slots`,
+        url: `/api/rooms`,
         params: {
-          date: queryArg.date,
+          keyword: queryArg.keyword,
+          page: queryArg.page,
+          pageSize: queryArg.pageSize,
         },
       }),
     }),
-    getBookings: build.query<GetBookingsApiResponse, GetBookingsApiArg>({
+    createRoom: build.mutation<CreateRoomApiResponse, CreateRoomApiArg>({
+      query: (queryArg) => ({
+        url: `/api/rooms`,
+        method: "POST",
+        body: queryArg.roomCreateRequest,
+      }),
+    }),
+    searchBookings: build.query<
+      SearchBookingsApiResponse,
+      SearchBookingsApiArg
+    >({
       query: (queryArg) => ({
         url: `/api/bookings`,
         params: {
-          roomId: queryArg.roomId,
           userId: queryArg.userId,
           status: queryArg.status,
-          date: queryArg.date,
-          page: queryArg.page,
-          pageSize: queryArg.pageSize,
+          roomId: queryArg.roomId,
         },
       }),
     }),
@@ -62,24 +54,28 @@ const injectedRtkApi = api.injectEndpoints({
       query: (queryArg) => ({
         url: `/api/bookings`,
         method: "POST",
-        body: queryArg.body,
+        body: queryArg.bookingCreateRequest,
       }),
     }),
-    getBookingById: build.query<
-      GetBookingByIdApiResponse,
-      GetBookingByIdApiArg
-    >({
-      query: (queryArg) => ({ url: `/api/bookings/${queryArg.id}` }),
-    }),
-    reviewBooking: build.mutation<
-      ReviewBookingApiResponse,
-      ReviewBookingApiArg
-    >({
+    register: build.mutation<RegisterApiResponse, RegisterApiArg>({
       query: (queryArg) => ({
-        url: `/api/bookings/${queryArg.id}`,
-        method: "PATCH",
-        body: queryArg.body,
+        url: `/api/auth/register`,
+        method: "POST",
+        body: queryArg.registerRequest,
       }),
+    }),
+    logout: build.mutation<LogoutApiResponse, LogoutApiArg>({
+      query: () => ({ url: `/api/auth/logout`, method: "POST" }),
+    }),
+    login: build.mutation<LoginApiResponse, LoginApiArg>({
+      query: (queryArg) => ({
+        url: `/api/auth/login`,
+        method: "POST",
+        body: queryArg.loginRequest,
+      }),
+    }),
+    getBooking: build.query<GetBookingApiResponse, GetBookingApiArg>({
+      query: (queryArg) => ({ url: `/api/bookings/${queryArg.id}` }),
     }),
     cancelBooking: build.mutation<
       CancelBookingApiResponse,
@@ -90,231 +86,248 @@ const injectedRtkApi = api.injectEndpoints({
         method: "DELETE",
       }),
     }),
-    register: build.mutation<RegisterApiResponse, RegisterApiArg>({
+    reviewBooking: build.mutation<
+      ReviewBookingApiResponse,
+      ReviewBookingApiArg
+    >({
       query: (queryArg) => ({
-        url: `/api/auth/register`,
-        method: "POST",
-        body: queryArg.body,
+        url: `/api/bookings/${queryArg.id}`,
+        method: "PATCH",
+        body: queryArg.bookingReviewRequest,
       }),
     }),
-    login: build.mutation<LoginApiResponse, LoginApiArg>({
+    getSlots: build.query<GetSlotsApiResponse, GetSlotsApiArg>({
       query: (queryArg) => ({
-        url: `/api/auth/login`,
-        method: "POST",
-        body: queryArg.body,
+        url: `/api/rooms/${queryArg.id}/slots`,
+        params: {
+          date: queryArg.date,
+        },
       }),
     }),
   }),
   overrideExisting: false,
 });
 export { injectedRtkApi as bookingApi };
-export type GetRoomsApiResponse = /** status 200 OK */ {
-  success: boolean;
-  data: Room[];
-  pagination: Pagination;
-};
-export type GetRoomsApiArg = {
-  page?: number;
-  pageSize?: number;
-  keyword?: string;
-};
-export type CreateRoomApiResponse = /** status 201 Created */ {
-  success: boolean;
-  data: Room;
-};
-export type CreateRoomApiArg = {
-  body: {
-    roomImg?: string;
-    title: string;
-    desc?: string;
-    floor?: string;
-    area?: number;
-    capacity?: number;
-    facilities?: string[];
-    price: Price;
-  };
-};
-export type GetRoomByIdApiResponse = /** status 200 OK */ {
-  success: boolean;
-  data: Room;
-};
-export type GetRoomByIdApiArg = {
+export type GetRoomApiResponse = /** status 200 OK */ ApiResponseRoomResponse;
+export type GetRoomApiArg = {
   id: number;
 };
-export type UpdateRoomApiResponse = /** status 200 OK */ {
-  success: boolean;
-  data: Room;
-};
+export type UpdateRoomApiResponse =
+  /** status 200 OK */ ApiResponseRoomResponse;
 export type UpdateRoomApiArg = {
   id: number;
-  body: {
-    roomImg?: string;
-    title?: string;
-    desc?: string;
-    floor?: string;
-    area?: number;
-    capacity?: number;
-    facilities?: string[];
-    price?: Price;
-  };
+  roomCreateRequest: RoomCreateRequest;
 };
-export type DeleteRoomApiResponse = /** status 200 OK */ {
-  success: boolean;
-  data?: object;
-};
+export type DeleteRoomApiResponse = /** status 200 OK */ ApiResponseVoid;
 export type DeleteRoomApiArg = {
   id: number;
 };
-export type GetRoomSlotsApiResponse = /** status 200 OK */ {
-  success: boolean;
-  data: SlotAvailability;
-};
-export type GetRoomSlotsApiArg = {
-  id: number;
-  date: string;
-};
-export type GetBookingsApiResponse = /** status 200 OK */ {
-  success: boolean;
-  data: Booking[];
-  pagination: Pagination;
-};
-export type GetBookingsApiArg = {
-  roomId?: number;
-  userId?: number;
-  status?: "pending" | "approved" | "rejected";
-  date?: string;
+export type SearchRoomsApiResponse =
+  /** status 200 OK */ ApiResponseListRoomResponse;
+export type SearchRoomsApiArg = {
+  keyword?: string;
   page?: number;
   pageSize?: number;
 };
-export type CreateBookingApiResponse = /** status 201 Created */ {
-  success: boolean;
-  data: Booking;
+export type CreateRoomApiResponse =
+  /** status 201 Created */ ApiResponseRoomResponse;
+export type CreateRoomApiArg = {
+  roomCreateRequest: RoomCreateRequest;
 };
+export type SearchBookingsApiResponse =
+  /** status 200 OK */ ApiResponseListBookingResponse;
+export type SearchBookingsApiArg = {
+  userId?: number;
+  status?: "PENDING" | "APPROVED" | "REJECTED";
+  roomId?: number;
+};
+export type CreateBookingApiResponse =
+  /** status 201 Created */ ApiResponseBookingResponse;
 export type CreateBookingApiArg = {
-  body: {
-    roomId: number;
-    booking_date: string;
-    timeSlot: "morning" | "afternoon" | "night";
-    reason?: string;
-    userName?: string;
-  };
+  bookingCreateRequest: BookingCreateRequest;
 };
-export type GetBookingByIdApiResponse = /** status 200 OK */ {
-  success: boolean;
-  data: Booking;
+export type RegisterApiResponse =
+  /** status 201 Created */ ApiResponseUserResponse;
+export type RegisterApiArg = {
+  registerRequest: RegisterRequest;
 };
-export type GetBookingByIdApiArg = {
+export type LogoutApiResponse = /** status 200 OK */ ApiResponseVoid;
+export type LogoutApiArg = void;
+export type LoginApiResponse = /** status 200 OK */ ApiResponseAuthResponse;
+export type LoginApiArg = {
+  loginRequest: LoginRequest;
+};
+export type GetBookingApiResponse =
+  /** status 200 OK */ ApiResponseBookingResponse;
+export type GetBookingApiArg = {
   id: number;
 };
-export type ReviewBookingApiResponse = /** status 200 OK */ {
-  success: boolean;
-  data: Booking;
-};
-export type ReviewBookingApiArg = {
-  id: number;
-  body: {
-    status: "approved" | "rejected";
-  };
-};
-export type CancelBookingApiResponse = /** status 200 OK */ {
-  success: boolean;
-  data?: object;
-};
+export type CancelBookingApiResponse = /** status 200 OK */ ApiResponseVoid;
 export type CancelBookingApiArg = {
   id: number;
 };
-export type RegisterApiResponse = /** status 201 Created */ {
-  success: boolean;
-  data: UserInfo;
-};
-export type RegisterApiArg = {
-  body: {
-    account: string;
-    password: string;
-  };
-};
-export type LoginApiResponse = /** status 200 OK */ {
-  success: boolean;
-  data: LoginData;
-};
-export type LoginApiArg = {
-  body: {
-    account: string;
-    password: string;
-  };
-};
-export type Price = {
-  morning: string;
-  afternoon: string;
-  night: string;
-};
-export type Room = {
+export type ReviewBookingApiResponse =
+  /** status 200 OK */ ApiResponseBookingResponse;
+export type ReviewBookingApiArg = {
   id: number;
+  bookingReviewRequest: BookingReviewRequest;
+};
+export type GetSlotsApiResponse =
+  /** status 200 OK */ ApiResponseSlotAvailabilityResponse;
+export type GetSlotsApiArg = {
+  id: number;
+  date: string;
+};
+export type PriceResponse = {
+  morning?: string;
+  afternoon?: string;
+  night?: string;
+};
+export type RoomResponse = {
+  id?: number;
   roomImg?: string;
-  title: string;
+  title?: string;
   desc?: string;
   floor?: string;
   area?: number;
   capacity?: number;
   facilities?: string[];
-  price: Price;
+  price?: PriceResponse;
   createdAt?: string;
 };
-export type Pagination = {
-  page: number;
-  pageSize: number;
-  total: number;
-  totalPages: number;
+export type PaginationResponse = {
+  page?: number;
+  pageSize?: number;
+  total?: number;
+  totalPages?: number;
 };
-export type ErrorResponse = {
-  success: boolean;
-  message: string;
+export type ApiResponseRoomResponse = {
+  success?: boolean;
+  data?: RoomResponse;
+  pagination?: PaginationResponse;
+  message?: string;
 };
-export type SlotAvailability = {
-  morning: "available" | "pending" | "approved";
-  afternoon: "available" | "pending" | "approved";
-  night: "available" | "pending" | "approved";
+export type PriceRequest = {
+  morning?: number;
+  afternoon?: number;
+  night?: number;
 };
-export type Booking = {
-  id: number;
-  roomId: number;
+export type RoomCreateRequest = {
+  title: string;
+  roomImg?: string;
+  desc?: string;
+  floor?: string;
+  area?: number;
+  capacity?: number;
+  facilities?: string[];
+  price?: PriceRequest;
+};
+export type ApiResponseVoid = {
+  success?: boolean;
+  data?: any;
+  pagination?: PaginationResponse;
+  message?: string;
+};
+export type ApiResponseListRoomResponse = {
+  success?: boolean;
+  data?: RoomResponse[];
+  pagination?: PaginationResponse;
+  message?: string;
+};
+export type BookingResponse = {
+  id?: number;
+  roomId?: number;
   roomTitle?: string;
   userId?: number;
   userName?: string;
-  booking_date: string;
-  timeSlot: "morning" | "afternoon" | "night";
+  date?: string;
+  timeSlot?: string;
   reason?: string;
-  status: "pending" | "approved" | "rejected";
+  status?: string;
   createdAt?: string;
 };
-export type UserInfo = {
-  id: number;
-  account: string;
-  role: "user" | "admin";
+export type ApiResponseListBookingResponse = {
+  success?: boolean;
+  data?: BookingResponse[];
+  pagination?: PaginationResponse;
+  message?: string;
 };
-export type LoginData = {
-  id: number;
+export type ApiResponseBookingResponse = {
+  success?: boolean;
+  data?: BookingResponse;
+  pagination?: PaginationResponse;
+  message?: string;
+};
+export type BookingCreateRequest = {
+  roomId: number;
+  userName?: string;
+  date: string;
+  timeSlot: string;
+  reason?: string;
+};
+export type UserResponse = {
+  id?: number;
+  account?: string;
+  role?: string;
+};
+export type ApiResponseUserResponse = {
+  success?: boolean;
+  data?: UserResponse;
+  pagination?: PaginationResponse;
+  message?: string;
+};
+export type RegisterRequest = {
   account: string;
-  role: "user" | "admin";
-  token: string;
+  password: string;
+};
+export type AuthResponse = {
+  id?: number;
+  account?: string;
+  role?: string;
+  token?: string;
+};
+export type ApiResponseAuthResponse = {
+  success?: boolean;
+  data?: AuthResponse;
+  pagination?: PaginationResponse;
+  message?: string;
+};
+export type LoginRequest = {
+  account: string;
+  password: string;
+};
+export type BookingReviewRequest = {
+  status: string;
+};
+export type SlotAvailabilityResponse = {
+  morning?: string;
+  afternoon?: string;
+  night?: string;
+};
+export type ApiResponseSlotAvailabilityResponse = {
+  success?: boolean;
+  data?: SlotAvailabilityResponse;
+  pagination?: PaginationResponse;
+  message?: string;
 };
 export const {
-  useGetRoomsQuery,
-  useLazyGetRoomsQuery,
-  useCreateRoomMutation,
-  useGetRoomByIdQuery,
-  useLazyGetRoomByIdQuery,
+  useGetRoomQuery,
+  useLazyGetRoomQuery,
   useUpdateRoomMutation,
   useDeleteRoomMutation,
-  useGetRoomSlotsQuery,
-  useLazyGetRoomSlotsQuery,
-  useGetBookingsQuery,
-  useLazyGetBookingsQuery,
+  useSearchRoomsQuery,
+  useLazySearchRoomsQuery,
+  useCreateRoomMutation,
+  useSearchBookingsQuery,
+  useLazySearchBookingsQuery,
   useCreateBookingMutation,
-  useGetBookingByIdQuery,
-  useLazyGetBookingByIdQuery,
-  useReviewBookingMutation,
-  useCancelBookingMutation,
   useRegisterMutation,
+  useLogoutMutation,
   useLoginMutation,
+  useGetBookingQuery,
+  useLazyGetBookingQuery,
+  useCancelBookingMutation,
+  useReviewBookingMutation,
+  useGetSlotsQuery,
+  useLazyGetSlotsQuery,
 } = injectedRtkApi;

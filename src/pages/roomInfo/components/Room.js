@@ -2,9 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import { Skeleton, Alert } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
+import { useSearchRoomsQuery } from "@/services/bookingApi.generated";
 
-// eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
-const API_URL  = process.env.REACT_APP_API_URL || "http://localhost:3001";
 const PAGE_SIZE = 5;
 
 const SLOTS = [
@@ -30,10 +29,8 @@ const getMinPrice = (room) => {
 const Room = () => {
   const navigate = useNavigate();
   const { isMobile } = useBreakpoint();
-  // eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
-  const [rooms, setRooms]       = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState(null);
+  const { data, isLoading, isError } = useSearchRoomsQuery({ pageSize: 100 });
+  const rooms = data?.data ?? [];
   const [currentPage, setCurrentPage] = useState(1);
 
   // ── 篩選 / 排序 state ────────────────────────────────────────────
@@ -41,28 +38,8 @@ const Room = () => {
   const [minCapacity, setMinCapacity] = useState(0);
   const [sortBy,      setSortBy]      = useState("default");
 
-  // 一次性拉全部，前端處理篩選
-  useEffect(() => {
-    const fetchRooms = async () => {
-      setLoading(true);
-      setError(null);
-      // 後端尚未啟動，API 呼叫先註解
-      // try {
-      //   const res  = await fetch(`${API_URL}/api/rooms?pageSize=100`);
-      //   const json = await res.json();
-      //   if (!json.success) throw new Error();
-      //   setRooms(json.data);
-      // } catch {
-      //   setError("無法連線至伺服器，請確認後端是否啟動。");
-      // } finally {
-      //   setLoading(false);
-      // }
-      setLoading(false);
-    };
-    fetchRooms();
-  }, []);
-
   // 篩選條件改變時回到第 1 頁
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { setCurrentPage(1); }, [keyword, minCapacity, sortBy]);
 
   // ── 前端篩選 + 排序 ──────────────────────────────────────────────
@@ -107,7 +84,7 @@ const Room = () => {
   };
 
   // ── 骨架 ────────────────────────────────────────────────────────
-  if (loading) return (
+  if (isLoading) return (
     <div style={{ maxWidth: 880, margin: "0 auto", padding: "32px 24px" }}>
       {[1, 2, 3].map((i) => (
         <div key={i} style={{
@@ -126,9 +103,9 @@ const Room = () => {
     </div>
   );
 
-  if (error) return (
+  if (isError) return (
     <div style={{ padding: "40px 24px" }}>
-      <Alert severity="error">{error}</Alert>
+      <Alert severity="error">無法連線至伺服器，請確認後端是否啟動。</Alert>
     </div>
   );
 

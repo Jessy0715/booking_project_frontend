@@ -1,13 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
+import { useLogoutMutation } from "@/services/bookingApi.generated";
+import { logout } from "@/features/auth/authSlice";
+import { api } from "@/services/emptyApi";
 
 const Header = () => {
   const navigate   = useNavigate();
   const location   = useLocation();
+  const dispatch   = useDispatch();
   const { isMobile } = useBreakpoint();
-  const user       = JSON.parse(localStorage.getItem("user") || "{}");
-  const isAdmin    = user.role === "admin";
+  const { role } = useSelector(state => state.auth);
+  const isAdmin = role === "admin";
+  const [logoutApi] = useLogoutMutation();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef    = useRef(null);
 
@@ -26,8 +32,12 @@ const Header = () => {
   // 換頁時關閉
   useEffect(() => { setMenuOpen(false); }, [location.pathname]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
+  const handleLogout = async () => {
+    try {
+      await logoutApi().unwrap();
+    } catch { /* server-side logout 失敗仍執行本地清除 */ }
+    dispatch(logout());
+    dispatch(api.util.resetApiState());
     navigate("/login");
   };
 

@@ -9,9 +9,8 @@ import {
 import dayjs from "dayjs";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
-
-// eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
+import { useSelector } from "react-redux";
+import { useSearchRoomsQuery, useGetSlotsQuery } from "@/services/bookingApi.generated";
 
 const TIME_SLOT_OPTIONS = [
   { value: "morning",   label: "上午 09:00 - 12:00" },
@@ -33,80 +32,51 @@ const modalStyles = {
 
 const RoomReserve = () => {
   const navigate = useNavigate();
-  // eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
   const location = useLocation();
   const [form] = Form.useForm();
   const { isMobile } = useBreakpoint();
-  const isAdmin = JSON.parse(localStorage.getItem("user") || "{}").role === "admin";
+  const { account, role } = useSelector(state => state.auth);
+  const isAdmin = role === "admin";
 
   const [isModalOpen, setIsModalOpen]       = useState(false);
-  // eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
-  const [rooms, setRooms]                   = useState([]);
   const [submitting, setSubmitting]         = useState(false);
-  // eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [notif, setNotif]                   = useState({ open: false, message: "", type: "success" });
-  // eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
-  const [allBookings, setAllBookings]       = useState([]);
   const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [selectedDate, setSelectedDate]     = useState(null);
 
-  // eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
   const showNotif = (message, type = "success") => {
     setNotif({ open: true, message, type });
     setTimeout(() => setNotif(n => ({ ...n, open: false })), 4500);
   };
 
-  // ── 取得所有預約（衝突判斷） ─────────────────────────────────────
-  useEffect(() => {
-    // 後端尚未啟動，API 呼叫先註解
-    // fetch(`${API_URL}/api/bookings`)
-    //   .then(r => r.json())
-    //   .then(j => { if (j.success) setAllBookings(j.data); })
-    //   .catch(() => {});
-  }, [refreshTrigger]);
+  // ── 場地清單 ─────────────────────────────────────────────────
+  const { data: roomsData } = useSearchRoomsQuery({ pageSize: 100 });
+  const rooms = (roomsData?.data ?? []).map(r => ({ value: r.id, label: r.title }));
 
-  // ── 取得場地清單 ──────────────────────────────────────────────
+  // 從 roomInfo 頁跳轉時，自動帶入場地並開啟 Modal
   useEffect(() => {
-    // 後端尚未啟動，API 呼叫先註解
-    // fetch(`${API_URL}/api/rooms?pageSize=100`)
-    //   .then(r => r.json())
-    //   .then(j => {
-    //     if (j.success) {
-    //       setRooms(j.data.map(r => ({ value: r.id, label: r.title })));
-    //       const roomId = location.state?.roomId;
-    //       if (roomId) {
-    //         form.setFieldsValue({ roomId });
-    //         setSelectedRoomId(roomId);
-    //         setIsModalOpen(true);
-    //       }
-    //     }
-    //   })
-    //   .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ── Client-side 時段衝突判斷 ─────────────────────────────────
-  const computeSlotStatus = () => {
-    if (!selectedRoomId || !selectedDate) return {};
-    const result = {};
-    for (const slot of ["morning", "afternoon", "night"]) {
-      const hit = allBookings.find(
-        b => b.roomId === selectedRoomId && b.date === selectedDate && b.timeSlot === slot
-          && (b.status === "pending" || b.status === "approved")
-      );
-      result[slot] = hit ? hit.status : "available";
+    const roomId = location.state?.roomId;
+    if (roomId && roomsData) {
+      form.setFieldsValue({ roomId });
+      setSelectedRoomId(roomId);
+      setIsModalOpen(true);
     }
-    return result;
-  };
-  const slotStatus = computeSlotStatus();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomsData]);
+
+  // ── 時段可用狀態（後端 slots API） ──────────────────────────
+  const { data: slotsData, isLoading: slotsLoading } = useGetSlotsQuery(
+    { id: selectedRoomId, date: selectedDate },
+    { skip: !selectedRoomId || !selectedDate },
+  );
+  const slotStatus = slotsData?.data ?? {};
 
   const handleRoomChange  = (v) => { setSelectedRoomId(v || null); form.setFieldValue("timeSlot", undefined); };
   const handleDateChange  = (v) => { setSelectedDate(v ? v.format("YYYY-MM-DD") : null); form.setFieldValue("timeSlot", undefined); };
 
   const handleDateClick = (dateStr) => {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    form.setFieldsValue({ date: dayjs(dateStr), userName: user.account || "" });
+    form.setFieldsValue({ date: dayjs(dateStr), userName: account || "" });
     setSelectedDate(dateStr);
     const cur = form.getFieldValue("roomId");
     if (cur) setSelectedRoomId(cur);
@@ -115,9 +85,8 @@ const RoomReserve = () => {
   };
 
   const openModal = () => {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
     form.resetFields();
-    form.setFieldsValue({ userName: user.account || "" });
+    form.setFieldsValue({ userName: account || "" });
     setSelectedRoomId(null);
     setSelectedDate(null);
     setIsModalOpen(true);
@@ -277,6 +246,9 @@ const RoomReserve = () => {
                 <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8, fontWeight: 500 }}>
                   時段可用狀態
                 </div>
+                {slotsLoading ? (
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", padding: "8px 0" }}>載入中…</div>
+                ) : (
                 <div style={{ display: "flex", gap: 8 }}>
                   {["morning", "afternoon", "night"].map((slot) => {
                     const status = slotStatus[slot] || "available";
@@ -313,6 +285,7 @@ const RoomReserve = () => {
                     );
                   })}
                 </div>
+                )}
               </div>
             )}
 

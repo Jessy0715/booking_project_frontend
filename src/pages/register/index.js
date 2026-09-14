@@ -2,9 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { IconButton, InputAdornment, OutlinedInput } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
-
-// eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
+import { useRegisterMutation } from "@/services/bookingApi.generated";
 
 const fieldStyle = {
   width: "100%",
@@ -18,48 +16,23 @@ const fieldStyle = {
 
 const Register = () => {
   const navigate = useNavigate();
+  const [registerApi, { isLoading }]        = useRegisterMutation();
   const [account, setAccount]               = useState("");
   const [password, setPassword]             = useState("");
   const [showPassword, setShowPassword]     = useState(false);
-  const [pwdFormatError, setPwdFormatError] = useState(false);
   const [errorMsg, setErrorMsg]             = useState("");
-  const [loading, setLoading]               = useState(false);
-
-  const handlePwdChange = (e) => {
-    const val = e.target.value;
-    setPassword(val);
-    if (val) {
-      const ok = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$/.test(val);
-      setPwdFormatError(!ok);
-    } else {
-      setPwdFormatError(false);
-    }
-    setErrorMsg("");
-  };
 
   const handleRegister = async () => {
-    if (!account)        { setErrorMsg("請輸入帳號"); return; }
-    if (!password)       { setErrorMsg("請輸入密碼"); return; }
-    if (pwdFormatError)  { setErrorMsg("密碼格式有誤"); return; }
+    if (!account)  { setErrorMsg("請輸入帳號"); return; }
+    if (!password) { setErrorMsg("請輸入密碼"); return; }
 
-    setLoading(true);
     setErrorMsg("");
-    // 後端尚未啟動，API 呼叫先註解
-    // try {
-    //   const res  = await fetch(`${API_URL}/api/auth/register`, {
-    //     method:  "POST",
-    //     headers: { "Content-Type": "application/json" },
-    //     body:    JSON.stringify({ account, password }),
-    //   });
-    //   const json = await res.json();
-    //   if (!json.success) { setErrorMsg(json.message || "註冊失敗"); return; }
-    //   navigate("/login");
-    // } catch {
-    //   setErrorMsg("無法連線至伺服器");
-    // } finally {
-    //   setLoading(false);
-    // }
-    setLoading(false);
+    try {
+      await registerApi({ body: { account, password } }).unwrap();
+      navigate("/login");
+    } catch (err) {
+      setErrorMsg(err?.data?.message || "註冊失敗，請稍後再試");
+    }
   };
 
   return (
@@ -130,12 +103,11 @@ const Register = () => {
             <OutlinedInput
               size="small"
               fullWidth
-              placeholder="8碼以上，含大小寫英文及數字"
+              placeholder="請輸入密碼"
               value={password}
-              onChange={handlePwdChange}
+              onChange={(e) => { setPassword(e.target.value); setErrorMsg(""); }}
               onKeyDown={(e) => e.key === "Enter" && handleRegister()}
               type={showPassword ? "text" : "password"}
-              error={pwdFormatError}
               endAdornment={
                 <InputAdornment position="end">
                   <IconButton size="small" onClick={() => setShowPassword((s) => !s)} edge="end">
@@ -145,11 +117,6 @@ const Register = () => {
               }
               sx={fieldStyle}
             />
-            {pwdFormatError && (
-              <div style={{ fontSize: 11, color: "oklch(0.5 0.15 15)", marginTop: 4 }}>
-                密碼需 8 碼以上，含大小寫英文及數字
-              </div>
-            )}
           </div>
 
           {/* 錯誤訊息 */}
@@ -168,25 +135,25 @@ const Register = () => {
           {/* 註冊按鈕 */}
           <button
             onClick={handleRegister}
-            disabled={loading}
+            disabled={isLoading}
             style={{
               width: "100%",
               padding: "10px 0",
               marginTop: errorMsg ? 0 : 20,
-              background: loading ? "var(--border)" : "var(--accent)",
+              background: isLoading ? "var(--border)" : "var(--accent)",
               color: "white",
               border: "none",
               borderRadius: 8,
               fontSize: 14,
               fontWeight: 500,
-              cursor: loading ? "not-allowed" : "pointer",
+              cursor: isLoading ? "not-allowed" : "pointer",
               fontFamily: "var(--font-sans)",
               transition: "background 0.15s",
             }}
-            onMouseEnter={(e) => { if (!loading) e.target.style.background = "var(--accent-hover)"; }}
-            onMouseLeave={(e) => { if (!loading) e.target.style.background = "var(--accent)"; }}
+            onMouseEnter={(e) => { if (!isLoading) e.target.style.background = "var(--accent-hover)"; }}
+            onMouseLeave={(e) => { if (!isLoading) e.target.style.background = "var(--accent)"; }}
           >
-            {loading ? "註冊中…" : "立刻註冊"}
+            {isLoading ? "註冊中…" : "立刻註冊"}
           </button>
 
           {/* 登入連結 */}

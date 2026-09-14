@@ -143,20 +143,35 @@ pages/roomInfo/
 
 ## RTK Query 使用方式
 
+### 參數命名規則（重要）
+
+Codegen 的 mutation arg 不是通用的 `{ body: ... }`，而是從 schema 產生的**具名欄位**。串接前務必先查 generated 檔確認參數名稱。
+
+```ts
+// ❌ 錯誤：body 是不存在的欄位
+loginApi({ body: { account, password } })
+
+// ✅ 正確：用 generated 型別裡的具名欄位
+loginApi({ loginRequest: { account, password } })
+registerApi({ registerRequest: { account, password } })
+```
+
+查法：grep `XxxApiArg` 或直接看 `bookingApi.generated.ts` 對應的 `build.mutation` query 函式，`body: queryArg.<fieldName>` 裡的 `fieldName` 就是要傳的 key。
+
 ```js
 import {
-  useGetRoomsQuery,
+  useSearchRoomsQuery,
+  useGetSlotsQuery,
   useLoginMutation,
   useCreateBookingMutation,
-  // ... 其他 hooks
 } from '@/services/bookingApi.generated'
 
 // Query
-const { data, isLoading, isError } = useGetRoomsQuery({ page: 1, pageSize: 5 })
+const { data, isLoading, isError } = useSearchRoomsQuery({ page: 1, pageSize: 5 })
 // data 的型別為 { success: boolean, data: Room[], pagination: Pagination }
 
-// Mutation
+// Mutation — 參數名稱照 generated ApiArg 型別
 const [login, { isLoading }] = useLoginMutation()
-await login({ account, password }).unwrap()
+await login({ loginRequest: { account, password } }).unwrap()
 ```
 

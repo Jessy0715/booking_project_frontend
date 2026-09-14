@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import Header from "@/components/Header";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
-
-// eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
+import { useSearchBookingsQuery, useCancelBookingMutation } from "@/services/bookingApi.generated";
 
 const TIME_SLOT_LABEL = { morning: "上午 09:00–12:00", afternoon: "下午 13:00–17:00", night: "晚上 18:00–21:00" };
 const TIME_SLOT_SHORT = { morning: "上午", afternoon: "下午", night: "晚上" };
@@ -38,58 +37,46 @@ const StatusBadge = ({ status }) => {
 const MyBookings = () => {
   const navigate  = useNavigate();
   const { isMobile } = useBreakpoint();
-  const user      = JSON.parse(localStorage.getItem("user") || "{}");
+  const { id, account, isLoggedIn } = useSelector(state => state.auth);
 
-  // eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
-  const [bookings, setBookings]       = useState([]);
-  const [loading, setLoading]         = useState(false);
-  const [activeTab, setActiveTab]     = useState("all");
-  const [confirmingId, setConfirmingId] = useState(null); // 正在確認取消的預約 id
-  const [toast, setToast]             = useState({ show: false, msg: "", ok: true });
+  const [activeTab, setActiveTab]       = useState("all");
+  const [confirmingId, setConfirmingId] = useState(null);
+  const [toast, setToast]               = useState({ show: false, msg: "", ok: true });
 
-  // eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
   const showToast = (msg, ok = true) => {
     setToast({ show: true, msg, ok });
     setTimeout(() => setToast((t) => ({ ...t, show: false })), 3000);
   };
 
-  const fetchBookings = useCallback(async () => {
-    if (!user.id) return;
-    setLoading(true);
-    // 後端尚未啟動，API 呼叫先註解
-    // try {
-    //   const res  = await fetch(`${API_URL}/api/bookings?userId=${user.id}`);
-    //   const json = await res.json();
-    //   if (json.success) setBookings(json.data);
-    // } catch {
-    //   showToast("無法取得預約資料", false);
-    // } finally {
-    //   setLoading(false);
-    // }
-    setLoading(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user.id]);
-
+  // 未登入跳轉
   useEffect(() => {
-    if (!user.id) { navigate("/login"); return; }
-    fetchBookings();
-  }, [fetchBookings, navigate, user.id]);
+    if (!isLoggedIn) navigate("/login");
+  }, [isLoggedIn, navigate]);
 
-  const handleCancel = async (id) => {
-    // 後端尚未啟動，API 呼叫先註解
-    // try {
-    //   const res  = await fetch(`${API_URL}/api/bookings/${id}`, { method: "DELETE" });
-    //   const json = await res.json();
-    //   if (json.success) {
-    //     setConfirmingId(null);
-    //     showToast("預約已取消");
-    //     fetchBookings();
-    //   } else {
-    //     showToast(json.message || "取消失敗", false);
-    //   }
-    // } catch {
-    //   showToast("無法連線至伺服器", false);
-    // }
+  // ── 取得我的預約 ─────────────────────────────────────────────
+  const { data, isLoading, refetch } = useSearchBookingsQuery(
+    { userId: id },
+    { skip: !id },
+  );
+  const bookings = (data?.data ?? []).map(b => ({ ...b, status: b.status?.toLowerCase() }));
+
+  // ── 取消預約 ────────────────────────────────────────────────
+  const [cancelBookingApi] = useCancelBookingMutation();
+
+  const handleCancel = async (bookingId) => {
+    try {
+      await cancelBookingApi({ id: bookingId }).unwrap();
+      setConfirmingId(null);
+      showToast("預約已取消");
+      refetch();
+    } catch (err) {
+      setConfirmingId(null);
+      if (err?.status === 403) {
+        showToast("您無權取消此預約", false);
+      } else {
+        showToast(err?.data?.message || "取消失敗，請稍後再試", false);
+      }
+    }
   };
 
   const filtered = activeTab === "all"
@@ -129,7 +116,7 @@ const MyBookings = () => {
             我的預約紀錄
           </h1>
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-            {user.account} · 共 {bookings.length} 筆
+            {account} · 共 {bookings.length} 筆
           </div>
         </div>
       </section>
@@ -179,7 +166,8 @@ const MyBookings = () => {
         </div>
 
         {/* ── Booking List ─────────────────────────────────────────── */}
-        {loading ? (
+        <div key={activeTab} className="page-enter">
+        {isLoading ? (
           <div style={{ textAlign: "center", padding: "60px 0", color: "var(--text-muted)", fontSize: 13 }}>
             載入中…
           </div>
@@ -298,6 +286,7 @@ const MyBookings = () => {
             ))}
           </div>
         )}
+        </div>
       </div>
 
       {/* ── Toast ────────────────────────────────────────────────── */}

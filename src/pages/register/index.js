@@ -28,7 +28,7 @@ const Register = () => {
 
     setErrorMsg("");
     try {
-      await registerApi({ body: { account, password } }).unwrap();
+      await registerApi({ registerRequest: { account, password } }).unwrap();
       navigate("/login");
     } catch (err) {
       setErrorMsg(err?.data?.message || "註冊失敗，請稍後再試");

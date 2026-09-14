@@ -4,13 +4,18 @@ import {
   Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
   Snackbar, Alert,
 } from "@mui/material";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Search as SearchIcon } from "@mui/icons-material";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
-
-// eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
+import {
+  useSearchRoomsQuery,
+  useCreateRoomMutation,
+  useUpdateRoomMutation,
+  useDeleteRoomMutation,
+  useSearchBookingsQuery,
+  useReviewBookingMutation,
+} from "@/services/bookingApi.generated";
 
 const TIME_SLOT_LABEL = { morning: "上午", afternoon: "下午", night: "晚上" };
 
@@ -53,29 +58,44 @@ const Admin = () => {
   const { isMobile } = useBreakpoint();
   const [activeTab, setActiveTab]     = useState(0);
   const [filter, setFilter]           = useState("");
-  // eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
-  const [rooms, setRooms]             = useState([]);
-  // eslint-disable-next-line no-unused-vars -- 保留供 API 呼叫恢復時使用
-  const [bookings, setBookings]       = useState([]);
+  const [roomKeyword, setRoomKeyword] = useState(""); // 觸發搜尋後才更新
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId]     = useState(null);
   const [formValues, setFormValues]   = useState(EMPTY_FORM);
   const [selectedIds, setSelectedIds] = useState([]);
   const [snackbar, setSnackbar]       = useState({ open: false, message: "", severity: "success" });
 
-  const [bookingKeyword, setBookingKeyword]         = useState("");
+  const [roomPage, setRoomPage]                     = useState(0);
+  const [roomRowsPerPage, setRoomRowsPerPage]       = useState(5);
+
+  const [bookingRoomFilter, setBookingRoomFilter]   = useState("");
+  const [bookingSlotFilter, setBookingSlotFilter]   = useState("");
+  const [bookingStatusFilter, setBookingStatusFilter] = useState("");
   const [bookingSort, setBookingSort]               = useState({ field: "date", direction: "asc" });
   const [bookingPage, setBookingPage]               = useState(0);
   const [bookingRowsPerPage, setBookingRowsPerPage] = useState(10);
 
+  // ── RTK Query ────────────────────────────────────────────────
+  const { data: roomsData, isLoading: roomsLoading, refetch: refetchRooms } =
+    useSearchRoomsQuery({ keyword: roomKeyword || undefined, pageSize: 100 });
+  const rooms = roomsData?.data ?? [];
+
+  const { data: bookingsData, refetch: refetchBookings } =
+    useSearchBookingsQuery({});
+  const bookings = (bookingsData?.data ?? []).map(b => ({ ...b, status: b.status?.toLowerCase() }));
+
+  const [createRoomApi]   = useCreateRoomMutation();
+  const [updateRoomApi]   = useUpdateRoomMutation();
+  const [deleteRoomApi]   = useDeleteRoomMutation();
+  const [reviewBookingApi] = useReviewBookingMutation();
+
   const processedBookings = useMemo(() => {
-    const kw = bookingKeyword.trim().toLowerCase();
-    const filtered = kw
-      ? bookings.filter((b) =>
-          [b.roomTitle, b.userName, b.date, b.reason, STATUS_CONFIG[b.status]?.text]
-            .some((v) => (v || "").toLowerCase().includes(kw))
-        )
-      : bookings;
+    const filtered = bookings.filter((b) => {
+      if (bookingRoomFilter   && String(b.roomId) !== bookingRoomFilter)   return false;
+      if (bookingSlotFilter   && b.timeSlot !== bookingSlotFilter)         return false;
+      if (bookingStatusFilter && b.status   !== bookingStatusFilter)       return false;
+      return true;
+    });
     const { field, direction } = bookingSort;
     return [...filtered].sort((a, b) => {
       let va, vb;
@@ -87,7 +107,7 @@ const Admin = () => {
       return 0;
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookings, bookingKeyword, bookingSort]);
+  }, [bookings, bookingRoomFilter, bookingSlotFilter, bookingStatusFilter, bookingSort]);
 
   const handleBookingSort = (field) => {
     setBookingSort((prev) =>
@@ -100,71 +120,79 @@ const Admin = () => {
 
   const showMsg = (message, severity = "success") => setSnackbar({ open: true, message, severity });
 
-  const fetchRooms = async (keyword = "") => {
-    // 後端尚未啟動，API 呼叫先註解
-    // const url  = keyword
-    //   ? `${API_URL}/api/rooms?pageSize=100&keyword=${encodeURIComponent(keyword)}`
-    //   : `${API_URL}/api/rooms?pageSize=100`;
-    // const res  = await fetch(url);
-    // const json = await res.json();
-    // if (json.success) setRooms(json.data);
-  };
-
-  const fetchBookings = async () => {
-    // 後端尚未啟動，API 呼叫先註解
-    // const res  = await fetch(`${API_URL}/api/bookings`);
-    // const json = await res.json();
-    // if (json.success) setBookings(json.data);
-  };
-
-  useEffect(() => { fetchRooms(); }, []);
-  useEffect(() => { if (activeTab === 1) fetchBookings(); }, [activeTab]);
-
   const handleOpenAdd = () => { setEditingId(null); setFormValues(EMPTY_FORM); setIsModalOpen(true); };
   const handleOpenEdit = (room) => {
     setEditingId(room.id);
-    setFormValues({ roomImg: room.roomImg, title: room.title, desc: room.desc, price: { ...room.price } });
+    setFormValues({
+      roomImg: room.roomImg ?? "",
+      title:   room.title   ?? "",
+      desc:    room.desc    ?? "",
+      price: {
+        morning:   String(room.price?.morning   ?? ""),
+        afternoon: String(room.price?.afternoon ?? ""),
+        night:     String(room.price?.night     ?? ""),
+      },
+    });
     setIsModalOpen(true);
   };
 
   const handleSave = async () => {
     if (!formValues.title) { showMsg("場地名稱為必填", "warning"); return; }
-    // 後端尚未啟動，API 呼叫先註解
-    // const body = { roomImg: formValues.roomImg, title: formValues.title, desc: formValues.desc, price: formValues.price };
-    // const url    = editingId ? `${API_URL}/api/rooms/${editingId}` : `${API_URL}/api/rooms`;
-    // const method = editingId ? "PUT" : "POST";
-    // const res  = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    // const json = await res.json();
-    // if (json.success) {
-    //   setIsModalOpen(false); fetchRooms(filter);
-    //   showMsg(editingId ? "場地已更新" : "場地已新增");
-    // } else showMsg(json.message || "操作失敗", "error");
+    const roomCreateRequest = {
+      title:   formValues.title,
+      roomImg: formValues.roomImg || undefined,
+      desc:    formValues.desc    || undefined,
+      price: {
+        morning:   Number(formValues.price.morning)   || undefined,
+        afternoon: Number(formValues.price.afternoon) || undefined,
+        night:     Number(formValues.price.night)     || undefined,
+      },
+    };
+    try {
+      if (editingId) {
+        await updateRoomApi({ id: editingId, roomCreateRequest }).unwrap();
+        showMsg("場地已更新");
+      } else {
+        await createRoomApi({ roomCreateRequest }).unwrap();
+        showMsg("場地已新增");
+      }
+      setIsModalOpen(false);
+      refetchRooms();
+    } catch (err) {
+      showMsg(err?.data?.message || "操作失敗", "error");
+    }
   };
 
   const handleDelete = async (id) => {
-    // 後端尚未啟動，API 呼叫先註解
-    // const res  = await fetch(`${API_URL}/api/rooms/${id}`, { method: "DELETE" });
-    // const json = await res.json();
-    // if (json.success) { fetchRooms(filter); showMsg("場地已刪除"); }
-    // else showMsg(json.message || "刪除失敗", "error");
+    try {
+      await deleteRoomApi({ id }).unwrap();
+      showMsg("場地已刪除");
+      refetchRooms();
+    } catch (err) {
+      showMsg(err?.data?.message || "刪除失敗", "error");
+    }
   };
 
   const handleBatchDelete = async () => {
-    // 後端尚未啟動，API 呼叫先註解
-    // await Promise.all(selectedIds.map((id) => fetch(`${API_URL}/api/rooms/${id}`, { method: "DELETE" })));
-    // setSelectedIds([]); fetchRooms(filter);
-    // showMsg(`已刪除 ${selectedIds.length} 筆場地`);
+    const count = selectedIds.length;
+    try {
+      await Promise.all(selectedIds.map((id) => deleteRoomApi({ id }).unwrap()));
+      setSelectedIds([]);
+      showMsg(`已刪除 ${count} 筆場地`);
+      refetchRooms();
+    } catch (err) {
+      showMsg(err?.data?.message || "批次刪除失敗", "error");
+    }
   };
 
   const handleReview = async (id, status) => {
-    // 後端尚未啟動，API 呼叫先註解
-    // const res  = await fetch(`${API_URL}/api/bookings/${id}`, {
-    //   method: "PATCH", headers: { "Content-Type": "application/json" },
-    //   body: JSON.stringify({ status }),
-    // });
-    // const json = await res.json();
-    // if (json.success) { fetchBookings(); showMsg(status === "approved" ? "已核准" : "已拒絕"); }
-    // else showMsg(json.message || "操作失敗", "error");
+    try {
+      await reviewBookingApi({ id, bookingReviewRequest: { status } }).unwrap();
+      showMsg(status === "approved" ? "已核准" : "已拒絕");
+      refetchBookings();
+    } catch (err) {
+      showMsg(err?.data?.message || "操作失敗", "error");
+    }
   };
 
   const handleFormChange = (e) => {
@@ -181,6 +209,9 @@ const Admin = () => {
     setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
 
   // ── Pagination ───────────────────────────────────────────────
+  const roomTotalPages = Math.ceil(rooms.length / roomRowsPerPage) || 1;
+  const pagedRooms     = rooms.slice(roomPage * roomRowsPerPage, roomPage * roomRowsPerPage + roomRowsPerPage);
+
   const totalPages    = Math.ceil(processedBookings.length / bookingRowsPerPage) || 1;
   const pagedBookings = processedBookings.slice(
     bookingPage * bookingRowsPerPage,
@@ -250,7 +281,7 @@ const Admin = () => {
 
         {/* ════════════ Tab 0：場地管理 ════════════ */}
         {activeTab === 0 && (
-          <>
+          <div key="tab-rooms" className="page-enter">
             {/* Toolbar */}
             <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "center", gap: isMobile ? 10 : 0, marginBottom: 24 }}>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -259,19 +290,32 @@ const Admin = () => {
                   <input
                     placeholder="搜尋場地名稱"
                     value={filter}
-                    onChange={(e) => setFilter(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && fetchRooms(filter)}
+                    onChange={(e) => { setFilter(e.target.value); if (!e.target.value) { setRoomKeyword(""); setRoomPage(0); } }}
+                    onKeyDown={(e) => { if (e.key === "Enter") { setRoomKeyword(filter); setRoomPage(0); } }}
                     style={{
-                      paddingLeft: 34, paddingRight: 12, height: 34,
+                      paddingLeft: 34, paddingRight: filter ? 30 : 12, height: 34,
                       border: "1px solid var(--border)", borderRadius: 7,
                       fontSize: 13, fontFamily: "var(--font-sans)",
                       background: "var(--surface)", color: "var(--text)", outline: "none",
                       width: isMobile ? "100%" : 220,
                     }}
                   />
+                  {filter && (
+                    <button
+                      onClick={() => { setFilter(""); setRoomKeyword(""); setRoomPage(0); }}
+                      style={{
+                        position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+                        border: "none", background: "none", cursor: "pointer", padding: 0,
+                        color: "var(--text-muted)", fontSize: 15, lineHeight: 1, display: "flex", alignItems: "center",
+                      }}
+                      title="清除搜尋"
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>
                 <button
-                  onClick={() => fetchRooms(filter)}
+                  onClick={() => { setRoomKeyword(filter); setRoomPage(0); }}
                   className="room-book-btn"
                   style={{ padding: "7px 16px" }}
                 >
@@ -307,7 +351,10 @@ const Admin = () => {
 
             {/* Room Cards */}
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {rooms.map((room, idx) => (
+              {roomsLoading && (
+                <div style={{ textAlign: "center", padding: "48px 0", color: "var(--text-muted)", fontSize: 13 }}>載入中…</div>
+              )}
+              {!roomsLoading && pagedRooms.map((room, idx) => (
                 <div
                   key={room.id}
                   style={{
@@ -394,34 +441,86 @@ const Admin = () => {
                 </div>
               ))}
 
-              {rooms.length === 0 && (
+              {!roomsLoading && rooms.length === 0 && (
                 <div style={{ textAlign: "center", padding: "52px 0", color: "var(--text-muted)", fontSize: 14 }}>
                   尚無場地資料
                 </div>
               )}
             </div>
-          </>
+
+            {/* Room Pagination */}
+            {rooms.length > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 20, fontSize: 12, color: "var(--text-muted)" }}>
+                <span>
+                  共 {rooms.length} 筆，第 {roomPage * roomRowsPerPage + 1}–{Math.min((roomPage + 1) * roomRowsPerPage, rooms.length)} 筆
+                </span>
+                <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+                  <span style={{ marginRight: 4 }}>每頁：</span>
+                  <select
+                    value={roomRowsPerPage}
+                    onChange={(e) => { setRoomRowsPerPage(Number(e.target.value)); setRoomPage(0); }}
+                    style={{ border: "1px solid var(--border)", borderRadius: 6, padding: "3px 6px", fontSize: 12, fontFamily: "var(--font-sans)", background: "var(--surface)", color: "var(--text)", outline: "none", marginRight: 8 }}
+                  >
+                    {[5, 10, 20].map((n) => <option key={n} value={n}>{n} 筆</option>)}
+                  </select>
+                  <button className="pg-btn" disabled={roomPage === 0} onClick={() => setRoomPage(0)}>«</button>
+                  <button className="pg-btn" disabled={roomPage === 0} onClick={() => setRoomPage((p) => p - 1)}>‹</button>
+                  {Array.from({ length: roomTotalPages }, (_, i) => i)
+                    .filter((i) => Math.abs(i - roomPage) <= 2)
+                    .map((i) => (
+                      <button key={i} className={`pg-btn${i === roomPage ? " active" : ""}`} onClick={() => setRoomPage(i)}>
+                        {i + 1}
+                      </button>
+                    ))}
+                  <button className="pg-btn" disabled={roomPage >= roomTotalPages - 1} onClick={() => setRoomPage((p) => p + 1)}>›</button>
+                  <button className="pg-btn" disabled={roomPage >= roomTotalPages - 1} onClick={() => setRoomPage(roomTotalPages - 1)}>»</button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {/* ════════════ Tab 1：預約審核 ════════════ */}
         {activeTab === 1 && (
-          <>
-            {/* Search */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ position: "relative", display: "inline-block" }}>
-                <SearchIcon style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: 16 }} />
-                <input
-                  placeholder="搜尋場地、預約人、日期、事由、狀態…"
-                  value={bookingKeyword}
-                  onChange={(e) => { setBookingKeyword(e.target.value); setBookingPage(0); }}
-                  style={{
-                    paddingLeft: 34, paddingRight: 12, height: 34,
-                    border: "1px solid var(--border)", borderRadius: 7,
-                    fontSize: 13, fontFamily: "var(--font-sans)",
-                    background: "var(--surface)", color: "var(--text)", outline: "none", width: 340,
-                  }}
-                />
-              </div>
+          <div key="tab-bookings" className="page-enter">
+            {/* Filter */}
+            <div style={{ marginBottom: 20, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+              <select
+                value={bookingRoomFilter}
+                onChange={(e) => { setBookingRoomFilter(e.target.value); setBookingPage(0); }}
+                style={{ height: 34, padding: "0 10px", border: "1px solid var(--border)", borderRadius: 7, fontSize: 13, fontFamily: "var(--font-sans)", background: "var(--surface)", color: bookingRoomFilter ? "var(--text)" : "var(--text-muted)", outline: "none", minWidth: 160 }}
+              >
+                <option value="">全部場地</option>
+                {rooms.map((r) => <option key={r.id} value={String(r.id)}>{r.title}</option>)}
+              </select>
+              <select
+                value={bookingSlotFilter}
+                onChange={(e) => { setBookingSlotFilter(e.target.value); setBookingPage(0); }}
+                style={{ height: 34, padding: "0 10px", border: "1px solid var(--border)", borderRadius: 7, fontSize: 13, fontFamily: "var(--font-sans)", background: "var(--surface)", color: bookingSlotFilter ? "var(--text)" : "var(--text-muted)", outline: "none", minWidth: 120 }}
+              >
+                <option value="">全部時段</option>
+                <option value="morning">上午</option>
+                <option value="afternoon">下午</option>
+                <option value="night">晚上</option>
+              </select>
+              <select
+                value={bookingStatusFilter}
+                onChange={(e) => { setBookingStatusFilter(e.target.value); setBookingPage(0); }}
+                style={{ height: 34, padding: "0 10px", border: "1px solid var(--border)", borderRadius: 7, fontSize: 13, fontFamily: "var(--font-sans)", background: "var(--surface)", color: bookingStatusFilter ? "var(--text)" : "var(--text-muted)", outline: "none", minWidth: 120 }}
+              >
+                <option value="">全部狀態</option>
+                <option value="pending">審核中</option>
+                <option value="approved">已核准</option>
+                <option value="rejected">已拒絕</option>
+              </select>
+              {(bookingRoomFilter || bookingSlotFilter || bookingStatusFilter) && (
+                <button
+                  onClick={() => { setBookingRoomFilter(""); setBookingSlotFilter(""); setBookingStatusFilter(""); setBookingPage(0); }}
+                  style={{ height: 34, padding: "0 14px", border: "1px solid var(--border)", borderRadius: 7, fontSize: 12, fontFamily: "var(--font-sans)", background: "transparent", color: "var(--text-muted)", cursor: "pointer" }}
+                >
+                  清除篩選
+                </button>
+              )}
             </div>
 
             {/* Table */}
@@ -506,7 +605,7 @@ const Admin = () => {
                   {processedBookings.length === 0 && (
                     <tr>
                       <td colSpan={7} style={{ textAlign: "center", padding: "48px 0", color: "var(--text-muted)", fontSize: 13 }}>
-                        {bookingKeyword ? "查無符合的預約紀錄" : "目前無預約申請"}
+                        {(bookingRoomFilter || bookingSlotFilter || bookingStatusFilter) ? "查無符合的預約紀錄" : "目前無預約申請"}
                       </td>
                     </tr>
                   )}
@@ -543,7 +642,7 @@ const Admin = () => {
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
 

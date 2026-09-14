@@ -37,7 +37,7 @@ const Login = () => {
 
     setErrorMsg("");
     try {
-      const result = await loginApi({ body: { account, password } }).unwrap();
+      const result = await loginApi({ loginRequest: { account, password } }).unwrap();
       const { role } = result.data;
 
       const isAdminTab  = loginRole === 1;
@@ -109,7 +109,7 @@ const Login = () => {
           {/* 角色切換 */}
           <div style={{
             display: "flex", gap: 4, padding: 4,
-            background: "var(--bg)", borderRadius: 8, marginBottom: 28,
+            background: "var(--bg)", borderRadius: 8, marginBottom: 12,
           }}>
             {["一般會員", "管理員"].map((label, i) => (
               <button
@@ -131,6 +131,17 @@ const Login = () => {
             ))}
           </div>
 
+          {/* 測試帳密提示 */}
+          <div style={{
+            fontSize: 11, color: "var(--text-muted)",
+            background: "var(--bg)", border: "1px solid var(--border-light)",
+            borderRadius: 6, padding: "7px 12px", marginBottom: 20,
+            display: "flex", gap: 16,
+          }}>
+            <span>帳號：<strong>{loginRole === 1 ? "admin" : "c1"}</strong></span>
+            <span>密碼：<strong>{loginRole === 1 ? "admin1234" : "1234"}</strong></span>
+          </div>
+
           {/* 帳號 */}
           <div style={{ marginBottom: 16 }}>
             <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>帳號</label>
@@ -141,6 +152,7 @@ const Login = () => {
               value={account}
               onChange={e => { setAccount(e.target.value); setErrorMsg(""); }}
               onKeyDown={e => e.key === "Enter" && handleLogin()}
+              inputProps={{ autoComplete: "off" }}
               sx={fieldStyle}
             />
           </div>
@@ -156,6 +168,7 @@ const Login = () => {
               onChange={e => { setPassword(e.target.value); setErrorMsg(""); }}
               onKeyDown={e => e.key === "Enter" && handleLogin()}
               type={showPassword ? "text" : "password"}
+              inputProps={{ autoComplete: "new-password" }}
               endAdornment={
                 <InputAdornment position="end">
                   <IconButton size="small" onClick={() => setShowPassword(s => !s)} edge="end">
@@ -204,16 +217,6 @@ const Login = () => {
             {isLoading ? "登入中…" : "登入"}
           </button>
 
-          {/* 註冊連結 */}
-          <div style={{ textAlign: "center", marginTop: 20, fontSize: 12, color: "var(--text-muted)" }}>
-            還沒有帳號？{" "}
-            <span
-              onClick={() => navigate("/register")}
-              style={{ color: "var(--accent)", cursor: "pointer", textDecoration: "underline" }}
-            >
-              立刻註冊
-            </span>
-          </div>
 
         </div>
       </div>

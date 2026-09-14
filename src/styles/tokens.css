@@ -94,6 +94,11 @@ body {
 }
 .room-book-btn:hover { background: var(--accent-hover); }
 
+/* ── 頁面進入動畫 ────────────────────────── */
+.page-enter {
+  animation: fadeIn 0.22s ease both;
+}
+
 /* ── 分頁按鈕 ────────────────────────────── */
 .pg-btn {
   width: 32px;

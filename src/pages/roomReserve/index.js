@@ -10,7 +10,7 @@ import dayjs from "dayjs";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useSelector } from "react-redux";
-import { useSearchRoomsQuery, useGetSlotsQuery } from "@/services/bookingApi.generated";
+import { useSearchRoomsQuery, useGetSlotsQuery, useCreateBookingMutation } from "@/services/bookingApi.generated";
 
 const TIME_SLOT_OPTIONS = [
   { value: "morning",   label: "上午 09:00 - 12:00" },
@@ -39,8 +39,8 @@ const RoomReserve = () => {
   const isAdmin = role === "admin";
 
   const [isModalOpen, setIsModalOpen]       = useState(false);
-  const [submitting, setSubmitting]         = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [createBookingApi, { isLoading: submitting }] = useCreateBookingMutation();
   const [notif, setNotif]                   = useState({ open: false, message: "", type: "success" });
   const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [selectedDate, setSelectedDate]     = useState(null);
@@ -66,7 +66,7 @@ const RoomReserve = () => {
   }, [roomsData]);
 
   // ── 時段可用狀態（後端 slots API） ──────────────────────────
-  const { data: slotsData, isLoading: slotsLoading } = useGetSlotsQuery(
+  const { data: slotsData, isLoading: slotsLoading, refetch: refetchSlots } = useGetSlotsQuery(
     { id: selectedRoomId, date: selectedDate },
     { skip: !selectedRoomId || !selectedDate },
   );
@@ -93,34 +93,30 @@ const RoomReserve = () => {
   };
 
   const handleSubmit = async () => {
+    let values;
     try {
-      await form.validateFields();
-      setSubmitting(true);
-      // 後端尚未啟動，API 呼叫先註解
-      // const user = JSON.parse(localStorage.getItem("user") || "{}");
-      // const payload = {
-      //   roomId:   values.roomId,
-      //   userId:   user.id || null,
-      //   userName: values.userName,
-      //   date:     values.date.format("YYYY-MM-DD"),
-      //   timeSlot: values.timeSlot,
-      //   reason:   values.reason || "",
-      // };
-      // const res  = await fetch(`${API_URL}/api/bookings`, {
-      //   method: "POST", headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify(payload),
-      // });
-      // const json = await res.json();
-      // if (json.success) {
-      //   setIsModalOpen(false);
-      //   form.resetFields();
-      //   setRefreshTrigger(n => n + 1);
-      //   showNotif("預約送出成功！等待審核中。", "success");
-      // } else {
-      //   showNotif(json.message || "預約失敗", "error");
-      // }
-    } catch { /* form validation */ } finally {
-      setSubmitting(false);
+      values = await form.validateFields();
+    } catch {
+      return;
+    }
+
+    try {
+      await createBookingApi({
+        bookingCreateRequest: {
+          roomId:   values.roomId,
+          userName: values.userName,
+          date:     values.date.format("YYYY-MM-DD"),
+          timeSlot: values.timeSlot,
+          reason:   values.reason || undefined,
+        },
+      }).unwrap();
+      refetchSlots();
+      setIsModalOpen(false);
+      form.resetFields();
+      setRefreshTrigger(n => n + 1);
+      showNotif("預約送出成功！等待審核中。", "success");
+    } catch (err) {
+      showNotif(err?.data?.message || "預約失敗，請稍後再試", "error");
     }
   };
 

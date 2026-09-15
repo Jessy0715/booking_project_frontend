@@ -90,6 +90,16 @@ const injectedRtkApi = api.injectEndpoints({
         body: queryArg.loginRequest,
       }),
     }),
+    generateRoomDescription: build.mutation<
+      GenerateRoomDescriptionApiResponse,
+      GenerateRoomDescriptionApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/api/ai/room-description`,
+        method: "POST",
+        body: queryArg.roomDescriptionRequest,
+      }),
+    }),
     getBooking: build.query<GetBookingApiResponse, GetBookingApiArg>({
       query: (queryArg) => ({ url: `/api/bookings/${queryArg.id}` }),
     }),
@@ -183,6 +193,11 @@ export type LogoutApiArg = void;
 export type LoginApiResponse = /** status 200 OK */ ApiResponseAuthResponse;
 export type LoginApiArg = {
   loginRequest: LoginRequest;
+};
+export type GenerateRoomDescriptionApiResponse =
+  /** status 200 OK */ ApiResponseRoomDescriptionResponse;
+export type GenerateRoomDescriptionApiArg = {
+  roomDescriptionRequest: RoomDescriptionRequest;
 };
 export type GetBookingApiResponse =
   /** status 200 OK */ ApiResponseBookingResponse;
@@ -332,6 +347,19 @@ export type LoginRequest = {
   account: string;
   password: string;
 };
+export type RoomDescriptionResponse = {
+  description?: string;
+};
+export type ApiResponseRoomDescriptionResponse = {
+  success?: boolean;
+  data?: RoomDescriptionResponse;
+  pagination?: PaginationResponse;
+  message?: string;
+};
+export type RoomDescriptionRequest = {
+  title: string;
+  roomImg: string;
+};
 export type BookingReviewRequest = {
   status: string;
 };
@@ -362,6 +390,7 @@ export const {
   useRegisterMutation,
   useLogoutMutation,
   useLoginMutation,
+  useGenerateRoomDescriptionMutation,
   useGetBookingQuery,
   useLazyGetBookingQuery,
   useCancelBookingMutation,

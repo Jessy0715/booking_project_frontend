@@ -54,7 +54,7 @@ const MyBookings = () => {
   }, [isLoggedIn, navigate]);
 
   // ── 取得我的預約 ─────────────────────────────────────────────
-  const { data, isLoading, refetch } = useSearchBookingsQuery(
+  const { data, isLoading, isError: bookingsError, refetch } = useSearchBookingsQuery(
     { userId: id },
     { skip: !id },
   );
@@ -170,6 +170,15 @@ const MyBookings = () => {
         {isLoading ? (
           <div style={{ textAlign: "center", padding: "60px 0", color: "var(--text-muted)", fontSize: 13 }}>
             載入中…
+          </div>
+        ) : bookingsError ? (
+          <div style={{
+            textAlign: "center", padding: "64px 0",
+            color: "oklch(0.50 0.14 15)", fontSize: 13,
+            background: "var(--surface)", border: "1px solid var(--border-light)",
+            borderRadius: "var(--r)",
+          }}>
+            預約紀錄載入失敗，請重新整理頁面
           </div>
         ) : filtered.length === 0 ? (
           <div style={{

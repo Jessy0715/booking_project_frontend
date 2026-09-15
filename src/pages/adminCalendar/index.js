@@ -8,7 +8,7 @@ const TIME_SLOT_LABEL = { morning: "上午", afternoon: "下午", night: "晚上
 const AdminCalendar = () => {
   const { isMobile } = useBreakpoint();
 
-  const { data, isLoading } = useSearchBookingsQuery({ pageSize: 200 });
+  const { data, isLoading, isError: bookingsError } = useSearchBookingsQuery({ pageSize: 200 });
   const bookings = (data?.data ?? []).map((b) => ({
     ...b,
     status: b.status?.toLowerCase(),
@@ -74,13 +74,24 @@ const AdminCalendar = () => {
 
       {/* ── Calendar ────────────────────────────────────────────── */}
       <div style={{ maxWidth: 900, margin: "0 auto", padding: isMobile ? "12px 16px 40px" : "16px 40px 60px" }}>
-        <div style={{ background: "var(--surface)", border: "1px solid var(--border-light)", borderRadius: "var(--r)", overflow: "hidden", boxShadow: "var(--shadow-sm)" }}>
-          <RentCalendar
-            bookings={bookings}
-            viewOnly={true}
-            isLoading={isLoading}
-          />
-        </div>
+        {bookingsError ? (
+          <div style={{
+            padding: "52px 0", textAlign: "center",
+            color: "oklch(0.50 0.14 15)", fontSize: 13,
+            background: "var(--surface)", border: "1px solid var(--border-light)",
+            borderRadius: "var(--r)",
+          }}>
+            預約資料載入失敗，請重新整理頁面
+          </div>
+        ) : (
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border-light)", borderRadius: "var(--r)", overflow: "hidden", boxShadow: "var(--shadow-sm)" }}>
+            <RentCalendar
+              bookings={bookings}
+              viewOnly={true}
+              isLoading={isLoading}
+            />
+          </div>
+        )}
       </div>
     </>
   );

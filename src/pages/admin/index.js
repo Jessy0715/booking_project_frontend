@@ -2,12 +2,11 @@ import Header from "@/components/Header";
 import {
   TextField, Grid,
   Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
-  Snackbar, Alert,
 } from "@mui/material";
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Search as SearchIcon } from "@mui/icons-material";
-import { Upload, Spin } from "antd";
+import { Upload, Spin, message as antdMsg } from "antd";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import {
   useSearchRoomsQuery,
@@ -68,7 +67,6 @@ const Admin = () => {
   const [editingId, setEditingId]     = useState(null);
   const [formValues, setFormValues]   = useState(EMPTY_FORM);
   const [selectedIds, setSelectedIds] = useState([]);
-  const [snackbar, setSnackbar]       = useState({ open: false, message: "", severity: "success" });
 
   const [roomPage, setRoomPage]                     = useState(0);
   const [roomRowsPerPage, setRoomRowsPerPage]       = useState(5);
@@ -81,11 +79,11 @@ const Admin = () => {
   const [bookingRowsPerPage, setBookingRowsPerPage] = useState(10);
 
   // ── RTK Query ────────────────────────────────────────────────
-  const { data: roomsData, isLoading: roomsLoading, refetch: refetchRooms } =
+  const { data: roomsData, isLoading: roomsLoading, isError: roomsError, refetch: refetchRooms } =
     useSearchRoomsQuery({ keyword: roomKeyword || undefined, pageSize: 100 });
   const rooms = roomsData?.data ?? [];
 
-  const { data: bookingsData, refetch: refetchBookings } =
+  const { data: bookingsData, isError: bookingsError, refetch: refetchBookings } =
     useSearchBookingsQuery({});
   const bookings = (bookingsData?.data ?? []).map(b => ({ ...b, status: b.status?.toLowerCase() }));
 
@@ -130,7 +128,11 @@ const Admin = () => {
     setBookingPage(0);
   };
 
-  const showMsg = (message, severity = "success") => setSnackbar({ open: true, message, severity });
+  const showMsg = (text, severity = "success") => {
+    if (severity === "error")   antdMsg.error(text);
+    else if (severity === "warning") antdMsg.warning(text);
+    else antdMsg.success(text);
+  };
 
   const handleOpenAdd = () => { setEditingId(null); setFormValues(EMPTY_FORM); setPendingFile(null); setCustomFacility(""); setIsModalOpen(true); };
   const handleOpenEdit = (room) => {
@@ -168,6 +170,10 @@ const Admin = () => {
       const res = await generateDescriptionApi({
         roomDescriptionRequest: { title: formValues.title, roomImg },
       }).unwrap();
+      if (!res.success) {
+        showMsg(res.message || "AI 生成失敗", "error");
+        return;
+      }
       const desc = res.data?.description;
       if (desc) {
         setFormValues((prev) => ({ ...prev, desc }));
@@ -175,8 +181,9 @@ const Admin = () => {
       } else {
         showMsg("AI 未能產出說明，請手動填寫", "warning");
       }
-    } catch {
-      showMsg("AI 生成失敗，請稍後再試", "error");
+    } catch (err) {
+      console.error('[AI描述] err:', err);
+      showMsg(err?.data?.message || err?.message || "AI 生成失敗，請稍後再試", "error");
     } finally {
       setAiLoading(false);
     }
@@ -499,7 +506,12 @@ const Admin = () => {
                 </div>
               ))}
 
-              {!roomsLoading && rooms.length === 0 && (
+              {!roomsLoading && roomsError && (
+                <div style={{ textAlign: "center", padding: "52px 0", color: "oklch(0.50 0.14 15)", fontSize: 13 }}>
+                  場地資料載入失敗，請重新整理頁面
+                </div>
+              )}
+              {!roomsLoading && !roomsError && rooms.length === 0 && (
                 <div style={{ textAlign: "center", padding: "52px 0", color: "var(--text-muted)", fontSize: 14 }}>
                   尚無場地資料
                 </div>
@@ -660,7 +672,14 @@ const Admin = () => {
                       </td>
                     </tr>
                   ))}
-                  {processedBookings.length === 0 && (
+                  {bookingsError && (
+                    <tr>
+                      <td colSpan={7} style={{ textAlign: "center", padding: "48px 0", color: "oklch(0.50 0.14 15)", fontSize: 13 }}>
+                        預約資料載入失敗，請重新整理頁面
+                      </td>
+                    </tr>
+                  )}
+                  {!bookingsError && processedBookings.length === 0 && (
                     <tr>
                       <td colSpan={7} style={{ textAlign: "center", padding: "48px 0", color: "var(--text-muted)", fontSize: 13 }}>
                         {(bookingRoomFilter || bookingSlotFilter || bookingStatusFilter) ? "查無符合的預約紀錄" : "目前無預約申請"}
@@ -870,7 +889,7 @@ const Admin = () => {
                 {/* 自訂輸入 */}
                 <div style={{ display: "flex", gap: 6 }}>
                   <input
-                    placeholder="輸入標籤，按 Enter 新增"
+                    placeholder="輸入標籤"
                     value={customFacility}
                     onChange={(e) => setCustomFacility(e.target.value)}
                     onKeyDown={(e) => {
@@ -948,17 +967,6 @@ const Admin = () => {
         </DialogActions>
       </Dialog>
 
-      {/* ── 全域提示 ──────────────────────────────────────────────── */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={3000}
-        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert severity={snackbar.severity} onClose={() => setSnackbar((s) => ({ ...s, open: false }))}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </>
   );
 };

@@ -51,7 +51,7 @@ const RoomReserve = () => {
   };
 
   // ── 場地清單 ─────────────────────────────────────────────────
-  const { data: roomsData } = useSearchRoomsQuery({ pageSize: 100 });
+  const { data: roomsData, isError: roomsError } = useSearchRoomsQuery({ pageSize: 100 });
   const rooms = (roomsData?.data ?? []).map(r => ({ value: r.id, label: r.title }));
 
   // 從 roomInfo 頁跳轉時，自動帶入場地並開啟 Modal
@@ -66,7 +66,7 @@ const RoomReserve = () => {
   }, [roomsData]);
 
   // ── 時段可用狀態（後端 slots API） ──────────────────────────
-  const { data: slotsData, isLoading: slotsLoading, refetch: refetchSlots } = useGetSlotsQuery(
+  const { data: slotsData, isLoading: slotsLoading, isError: slotsError, refetch: refetchSlots } = useGetSlotsQuery(
     { id: selectedRoomId, date: selectedDate },
     { skip: !selectedRoomId || !selectedDate },
   );
@@ -219,7 +219,8 @@ const RoomReserve = () => {
           <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
             <Form.Item label="預約場地" name="roomId" rules={[{ required: true, message: "請選擇場地" }]}>
               <Select
-                placeholder="請選擇租借場地"
+                placeholder={roomsError ? "場地資料載入失敗，請重新整理" : "請選擇租借場地"}
+                status={roomsError ? "error" : undefined}
                 allowClear
                 options={rooms}
                 onChange={handleRoomChange}
@@ -244,6 +245,8 @@ const RoomReserve = () => {
                 </div>
                 {slotsLoading ? (
                   <div style={{ fontSize: 12, color: "var(--text-muted)", padding: "8px 0" }}>載入中…</div>
+                ) : slotsError ? (
+                  <div style={{ fontSize: 12, color: "oklch(0.50 0.14 15)", padding: "8px 0" }}>時段資料載入失敗，請稍後再試</div>
                 ) : (
                 <div style={{ display: "flex", gap: 8 }}>
                   {["morning", "afternoon", "night"].map((slot) => {

@@ -94,6 +94,14 @@ body {
 }
 .room-book-btn:hover { background: var(--accent-hover); }
 
+/* ── 場地圖片上傳（強制滿寬）────────────── */
+.room-img-upload,
+.room-img-upload .ant-upload-wrapper,
+.room-img-upload .ant-upload.ant-upload-select {
+  display: block !important;
+  width: 100% !important;
+}
+
 /* ── 頁面進入動畫 ────────────────────────── */
 .page-enter {
   animation: fadeIn 0.22s ease both;

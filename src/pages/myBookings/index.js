@@ -248,9 +248,6 @@ const MyBookings = () => {
                         取消預約
                       </button>
                     )}
-                    <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                      {b.createdAt?.slice(0, 10)}
-                    </div>
                   </div>
                 </div>
 

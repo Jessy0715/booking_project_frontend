@@ -303,7 +303,7 @@ const RoomReserve = () => {
             </Form.Item>
 
             <Form.Item label="預約人姓名" name="userName" rules={[{ required: true, message: "請輸入姓名" }]}>
-              <Input placeholder="請輸入預約人姓名" allowClear />
+              <Input placeholder="請輸入預約人姓名" disabled={!isAdmin} />
             </Form.Item>
 
             <Form.Item label="租借事由" name="reason">

@@ -7,14 +7,17 @@ import {
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Search as SearchIcon } from "@mui/icons-material";
+import { Upload, Spin } from "antd";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import {
   useSearchRoomsQuery,
   useCreateRoomMutation,
   useUpdateRoomMutation,
   useDeleteRoomMutation,
+  useDeleteRoomsMutation,
   useSearchBookingsQuery,
   useReviewBookingMutation,
+  useUploadImageMutation,
 } from "@/services/bookingApi.generated";
 
 const TIME_SLOT_LABEL = { morning: "上午", afternoon: "下午", night: "晚上" };
@@ -84,10 +87,14 @@ const Admin = () => {
     useSearchBookingsQuery({});
   const bookings = (bookingsData?.data ?? []).map(b => ({ ...b, status: b.status?.toLowerCase() }));
 
-  const [createRoomApi]   = useCreateRoomMutation();
-  const [updateRoomApi]   = useUpdateRoomMutation();
-  const [deleteRoomApi]   = useDeleteRoomMutation();
+  const [createRoomApi]    = useCreateRoomMutation();
+  const [updateRoomApi]    = useUpdateRoomMutation();
+  const [deleteRoomApi]    = useDeleteRoomMutation();
+  const [deleteRoomsApi]   = useDeleteRoomsMutation();
   const [reviewBookingApi] = useReviewBookingMutation();
+  const [uploadImageApi]   = useUploadImageMutation();
+  const [pendingFile, setPendingFile] = useState(null); // { file: File, previewUrl: string }
+  const [saving, setSaving]           = useState(false);
 
   const processedBookings = useMemo(() => {
     const filtered = bookings.filter((b) => {
@@ -120,9 +127,10 @@ const Admin = () => {
 
   const showMsg = (message, severity = "success") => setSnackbar({ open: true, message, severity });
 
-  const handleOpenAdd = () => { setEditingId(null); setFormValues(EMPTY_FORM); setIsModalOpen(true); };
+  const handleOpenAdd = () => { setEditingId(null); setFormValues(EMPTY_FORM); setPendingFile(null); setIsModalOpen(true); };
   const handleOpenEdit = (room) => {
     setEditingId(room.id);
+    setPendingFile(null);
     setFormValues({
       roomImg: room.roomImg ?? "",
       title:   room.title   ?? "",
@@ -137,18 +145,26 @@ const Admin = () => {
   };
 
   const handleSave = async () => {
-    if (!formValues.title) { showMsg("場地名稱為必填", "warning"); return; }
-    const roomCreateRequest = {
-      title:   formValues.title,
-      roomImg: formValues.roomImg || undefined,
-      desc:    formValues.desc    || undefined,
-      price: {
-        morning:   Number(formValues.price.morning)   || undefined,
-        afternoon: Number(formValues.price.afternoon) || undefined,
-        night:     Number(formValues.price.night)     || undefined,
-      },
-    };
+    if (!formValues.title.trim()) { showMsg("場地名稱為必填", "warning"); return; }
+    setSaving(true);
     try {
+      let roomImg = formValues.roomImg || undefined;
+      if (pendingFile) {
+        const formData = new FormData();
+        formData.append("file", pendingFile.file);
+        const res = await uploadImageApi({ body: formData }).unwrap();
+        roomImg = res.data?.url || undefined;
+      }
+      const roomCreateRequest = {
+        title:   formValues.title,
+        roomImg,
+        desc:    formValues.desc    || undefined,
+        price: {
+          morning:   Number(formValues.price.morning)   || undefined,
+          afternoon: Number(formValues.price.afternoon) || undefined,
+          night:     Number(formValues.price.night)     || undefined,
+        },
+      };
       if (editingId) {
         await updateRoomApi({ id: editingId, roomCreateRequest }).unwrap();
         showMsg("場地已更新");
@@ -157,9 +173,12 @@ const Admin = () => {
         showMsg("場地已新增");
       }
       setIsModalOpen(false);
+      setPendingFile(null);
       refetchRooms();
     } catch (err) {
       showMsg(err?.data?.message || "操作失敗", "error");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -176,7 +195,7 @@ const Admin = () => {
   const handleBatchDelete = async () => {
     const count = selectedIds.length;
     try {
-      await Promise.all(selectedIds.map((id) => deleteRoomApi({ id }).unwrap()));
+      await deleteRoomsApi({ ids: selectedIds }).unwrap();
       setSelectedIds([]);
       showMsg(`已刪除 ${count} 筆場地`);
       refetchRooms();
@@ -660,11 +679,83 @@ const Admin = () => {
         <DialogContent>
           <DialogContentText component="div">
             <div style={{ display: "flex", flexDirection: "column", gap: 14, paddingTop: 8 }}>
-              <TextField size="small" label="場地圖片 URL" name="roomImg"
-                value={formValues.roomImg} onChange={handleFormChange} fullWidth sx={fieldSx} />
-              {formValues.roomImg && (
-                <img src={formValues.roomImg} alt="預覽" style={{ width: "100%", maxHeight: 160, objectFit: "cover", borderRadius: 8, border: "1px solid var(--border-light)" }} />
-              )}
+              {/* 場地圖片上傳 */}
+              <div>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>場地圖片</div>
+                <div style={{ position: "relative" }}>
+                  <Upload
+                    accept="image/*"
+                    showUploadList={false}
+                    rootClassName="room-img-upload"
+                    customRequest={({ file, onSuccess }) => {
+                      const previewUrl = URL.createObjectURL(file);
+                      setPendingFile({ file, previewUrl });
+                      onSuccess({});
+                    }}
+                  >
+                    <Spin spinning={saving && !!pendingFile}>
+                      {(pendingFile?.previewUrl || formValues.roomImg) ? (
+                        <div style={{ position: "relative", width: "100%", cursor: "pointer", borderRadius: 8, overflow: "hidden" }}>
+                          <img
+                            src={pendingFile?.previewUrl || formValues.roomImg}
+                            alt="場地圖片"
+                            style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }}
+                          />
+                          <div style={{
+                            position: "absolute", inset: 0, background: "rgba(0,0,0,0)",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            transition: "background 0.2s",
+                            fontSize: 13, color: "white", fontFamily: "var(--font-sans)", fontWeight: 500,
+                          }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.45)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0)"; }}
+                          >
+                            點擊更換圖片
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{
+                          width: "100%", height: 120, border: "1.5px dashed var(--border)",
+                          borderRadius: 8, display: "flex", flexDirection: "column",
+                          alignItems: "center", justifyContent: "center", gap: 6,
+                          cursor: "pointer", background: "var(--bg)",
+                          transition: "border-color 0.15s",
+                          fontFamily: "var(--font-sans)",
+                        }}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; }}
+                        >
+                          <span style={{ fontSize: 22, opacity: 0.4 }}>↑</span>
+                          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>點擊或拖曳上傳圖片</span>
+                          <span style={{ fontSize: 11, color: "var(--text-muted)", opacity: 0.7 }}>JPG、PNG、WebP</span>
+                        </div>
+                      )}
+                    </Spin>
+                  </Upload>
+
+                  {/* × 移除按鈕：疊在圖片右上角，與 Upload 分離避免觸發 file picker */}
+                  {(pendingFile?.previewUrl || formValues.roomImg) && (
+                    <button
+                      type="button"
+                      onClick={() => { setFormValues((prev) => ({ ...prev, roomImg: "" })); setPendingFile(null); }}
+                      style={{
+                        position: "absolute", top: 8, right: 8,
+                        width: 26, height: 26, borderRadius: "50%",
+                        border: "none", background: "rgba(0,0,0,0.55)",
+                        color: "white", fontSize: 15, lineHeight: 1,
+                        cursor: "pointer", display: "flex", alignItems: "center",
+                        justifyContent: "center", zIndex: 2,
+                        transition: "background 0.15s",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.8)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.55)"; }}
+                      title="移除圖片"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
               <TextField size="small" label="場地名稱 *" name="title"
                 value={formValues.title} onChange={handleFormChange} fullWidth sx={fieldSx} />
               <TextField size="small" label="場地說明" name="desc"
@@ -692,11 +783,12 @@ const Admin = () => {
           </button>
           <button
             onClick={handleSave}
-            style={{ padding: "8px 20px", background: "var(--accent)", border: "none", borderRadius: 7, fontSize: 13, fontWeight: 500, color: "white", cursor: "pointer", fontFamily: "var(--font-sans)", transition: "background 0.15s" }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-hover)"; }}
+            disabled={saving}
+            style={{ padding: "8px 20px", background: "var(--accent)", border: "none", borderRadius: 7, fontSize: 13, fontWeight: 500, color: "white", cursor: saving ? "not-allowed" : "pointer", fontFamily: "var(--font-sans)", transition: "background 0.15s", opacity: saving ? 0.7 : 1 }}
+            onMouseEnter={(e) => { if (!saving) e.currentTarget.style.background = "var(--accent-hover)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = "var(--accent)"; }}
           >
-            儲存
+            {saving ? "儲存中…" : "儲存"}
           </button>
         </DialogActions>
       </Dialog>

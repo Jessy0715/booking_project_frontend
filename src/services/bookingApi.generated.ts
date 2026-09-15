@@ -17,6 +17,13 @@ const injectedRtkApi = api.injectEndpoints({
         method: "DELETE",
       }),
     }),
+    uploadImage: build.mutation<UploadImageApiResponse, UploadImageApiArg>({
+      query: (queryArg) => ({
+        url: `/api/uploads/images`,
+        method: "POST",
+        body: queryArg.body,
+      }),
+    }),
     searchRooms: build.query<SearchRoomsApiResponse, SearchRoomsApiArg>({
       query: (queryArg) => ({
         url: `/api/rooms`,
@@ -32,6 +39,15 @@ const injectedRtkApi = api.injectEndpoints({
         url: `/api/rooms`,
         method: "POST",
         body: queryArg.roomCreateRequest,
+      }),
+    }),
+    deleteRooms: build.mutation<DeleteRoomsApiResponse, DeleteRoomsApiArg>({
+      query: (queryArg) => ({
+        url: `/api/rooms`,
+        method: "DELETE",
+        params: {
+          ids: queryArg.ids,
+        },
       }),
     }),
     searchBookings: build.query<
@@ -122,6 +138,13 @@ export type DeleteRoomApiResponse = /** status 200 OK */ ApiResponseVoid;
 export type DeleteRoomApiArg = {
   id: number;
 };
+export type UploadImageApiResponse =
+  /** status 201 Created */ ApiResponseUploadResponse;
+export type UploadImageApiArg = {
+  body: {
+    file: Blob;
+  };
+};
 export type SearchRoomsApiResponse =
   /** status 200 OK */ ApiResponseListRoomResponse;
 export type SearchRoomsApiArg = {
@@ -133,6 +156,10 @@ export type CreateRoomApiResponse =
   /** status 201 Created */ ApiResponseRoomResponse;
 export type CreateRoomApiArg = {
   roomCreateRequest: RoomCreateRequest;
+};
+export type DeleteRoomsApiResponse = /** status 200 OK */ ApiResponseVoid;
+export type DeleteRoomsApiArg = {
+  ids: number[];
 };
 export type SearchBookingsApiResponse =
   /** status 200 OK */ ApiResponseListBookingResponse;
@@ -228,6 +255,15 @@ export type ApiResponseVoid = {
   pagination?: PaginationResponse;
   message?: string;
 };
+export type UploadResponse = {
+  url?: string;
+};
+export type ApiResponseUploadResponse = {
+  success?: boolean;
+  data?: UploadResponse;
+  pagination?: PaginationResponse;
+  message?: string;
+};
 export type ApiResponseListRoomResponse = {
   success?: boolean;
   data?: RoomResponse[];
@@ -315,9 +351,11 @@ export const {
   useLazyGetRoomQuery,
   useUpdateRoomMutation,
   useDeleteRoomMutation,
+  useUploadImageMutation,
   useSearchRoomsQuery,
   useLazySearchRoomsQuery,
   useCreateRoomMutation,
+  useDeleteRoomsMutation,
   useSearchBookingsQuery,
   useLazySearchBookingsQuery,
   useCreateBookingMutation,

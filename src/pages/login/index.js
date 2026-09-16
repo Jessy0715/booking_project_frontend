@@ -138,8 +138,8 @@ const Login = () => {
             borderRadius: 6, padding: "7px 12px", marginBottom: 20,
             display: "flex", gap: 16,
           }}>
-            <span>帳號：<strong>{loginRole === 1 ? "admin" : "c1"}</strong></span>
-            <span>密碼：<strong>{loginRole === 1 ? "admin1234" : "1234"}</strong></span>
+            <span>帳號：<strong>{loginRole === 1 ? "admin" : "demo"}</strong></span>
+            <span>密碼：<strong>{loginRole === 1 ? "admin1234" : "demo1234"}</strong></span>
           </div>
 
           {/* 帳號 */}

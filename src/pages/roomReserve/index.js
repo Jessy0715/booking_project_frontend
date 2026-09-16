@@ -10,7 +10,7 @@ import dayjs from "dayjs";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useSelector } from "react-redux";
-import { useSearchRoomsQuery, useGetSlotsQuery, useCreateBookingMutation } from "@/services/bookingApi.generated";
+import { useGetRoomOptionsQuery, useGetSlotsQuery, useCreateBookingMutation } from "@/services/bookingApi.generated";
 
 const TIME_SLOT_OPTIONS = [
   { value: "morning",   label: "上午 09:00 - 12:00" },
@@ -51,7 +51,7 @@ const RoomReserve = () => {
   };
 
   // ── 場地清單 ─────────────────────────────────────────────────
-  const { data: roomsData, isError: roomsError } = useSearchRoomsQuery({ pageSize: 100 });
+  const { data: roomsData, isError: roomsError } = useGetRoomOptionsQuery();
   const rooms = (roomsData?.data ?? []).map(r => ({ value: r.id, label: r.title }));
 
   // 從 roomInfo 頁跳轉時，自動帶入場地並開啟 Modal

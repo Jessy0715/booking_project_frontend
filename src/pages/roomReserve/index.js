@@ -39,7 +39,7 @@ const RoomReserve = () => {
   const isAdmin = role === "admin";
 
   const [isModalOpen, setIsModalOpen]       = useState(false);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [, setRefreshTrigger] = useState(0);
   const [createBookingApi, { isLoading: submitting }] = useCreateBookingMutation();
   const [notif, setNotif]                   = useState({ open: false, message: "", type: "success" });
   const [selectedRoomId, setSelectedRoomId] = useState(null);

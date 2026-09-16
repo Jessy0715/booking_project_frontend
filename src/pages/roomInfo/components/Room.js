@@ -30,7 +30,7 @@ const Room = () => {
   const navigate = useNavigate();
   const { isMobile } = useBreakpoint();
   const { data, isLoading, isError } = useSearchRoomsQuery({ pageSize: 100 });
-  const rooms = data?.data ?? [];
+  const rooms = useMemo(() => data?.data ?? [], [data]);
   const [currentPage, setCurrentPage] = useState(1);
 
   // ── 篩選 / 排序 state ────────────────────────────────────────────

@@ -6,6 +6,7 @@ import RoomInfo from "./pages/roomInfo";
 import RoomReserve from "./pages/roomReserve";
 import RentCalendar from "./components/rentCalendar";
 import MyBookings from "./pages/myBookings";
+import NotFound from "./pages/notFound";
 const routes = [
   {
     path: "/",
@@ -43,11 +44,10 @@ const routes = [
     path: "/myBookings",
     element: <MyBookings />,
   },
-  // {
-  //   path: "*",
-  //   element: <NotFound />,
-  //   children: [],
-  // },
+  {
+    path: "*",
+    element: <NotFound />,
+  },
 ];
 
 export default routes;

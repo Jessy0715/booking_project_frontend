@@ -1,24 +1,14 @@
 import Header from "@/components/Header";
-import {
-  TextField, Grid,
-  Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
-} from "@mui/material";
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Search as SearchIcon } from "@mui/icons-material";
-import { Upload, Spin, message as antdMsg } from "antd";
+import { message as antdMsg } from "antd";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import {
   useSearchRoomsQuery,
-  useCreateRoomMutation,
-  useUpdateRoomMutation,
-  useDeleteRoomMutation,
-  useDeleteRoomsMutation,
   useSearchBookingsQuery,
   useReviewBookingMutation,
-  useUploadImageMutation,
-  useGenerateRoomDescriptionMutation,
 } from "@/services/bookingApi.generated";
+import RoomManager from "./components/RoomManager";
 
 const TIME_SLOT_LABEL = { morning: "上午", afternoon: "下午", night: "晚上" };
 
@@ -28,22 +18,8 @@ const STATUS_CONFIG = {
   rejected: { text: "已拒絕", color: "oklch(0.42 0.14 15)",  bg: "oklch(0.97 0.03 15)",  border: "oklch(0.76 0.1 15)" },
 };
 
-const EMPTY_FORM = { roomImg: "", title: "", desc: "", facilities: [], price: { morning: "", afternoon: "", night: "" } };
-
 const TIME_SLOT_ORDER = { morning: 0, afternoon: 1, night: 2 };
 const STATUS_ORDER    = { pending: 0, approved: 1, rejected: 2 };
-
-const fieldSx = {
-  "& .MuiOutlinedInput-root": {
-    borderRadius: "8px",
-    fontFamily: "var(--font-sans)",
-    fontSize: 13,
-  },
-  "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
-    borderColor: "var(--accent)",
-  },
-  "& .MuiInputLabel-root.Mui-focused": { color: "var(--accent)" },
-};
 
 const StatusBadge = ({ status }) => {
   const c = STATUS_CONFIG[status] || {};
@@ -61,15 +37,7 @@ const StatusBadge = ({ status }) => {
 const Admin = () => {
   const { isMobile } = useBreakpoint();
   const [activeTab, setActiveTab]     = useState(0);
-  const [filter, setFilter]           = useState("");
-  const [roomKeyword, setRoomKeyword] = useState(""); // 觸發搜尋後才更新
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingId, setEditingId]     = useState(null);
-  const [formValues, setFormValues]   = useState(EMPTY_FORM);
-  const [selectedIds, setSelectedIds] = useState([]);
-
-  const [roomPage, setRoomPage]                     = useState(0);
-  const [roomRowsPerPage, setRoomRowsPerPage]       = useState(5);
+  const [roomKeyword, setRoomKeyword] = useState(""); // 場地管理觸發搜尋後才更新，預約審核的場地下拉共用
 
   const [bookingRoomFilter, setBookingRoomFilter]   = useState("");
   const [bookingSlotFilter, setBookingSlotFilter]   = useState("");
@@ -79,25 +47,14 @@ const Admin = () => {
   const [bookingRowsPerPage, setBookingRowsPerPage] = useState(10);
 
   // ── RTK Query ────────────────────────────────────────────────
-  const { data: roomsData, isLoading: roomsLoading, isError: roomsError, refetch: refetchRooms } =
-    useSearchRoomsQuery({ keyword: roomKeyword || undefined, pageSize: 100 });
+  const { data: roomsData } = useSearchRoomsQuery({ keyword: roomKeyword || undefined, pageSize: 100 });
   const rooms = roomsData?.data ?? [];
 
   const { data: bookingsData, isError: bookingsError, refetch: refetchBookings } =
     useSearchBookingsQuery({});
   const bookings = (bookingsData?.data ?? []).map(b => ({ ...b, status: b.status?.toLowerCase() }));
 
-  const [createRoomApi]    = useCreateRoomMutation();
-  const [updateRoomApi]    = useUpdateRoomMutation();
-  const [deleteRoomApi]    = useDeleteRoomMutation();
-  const [deleteRoomsApi]   = useDeleteRoomsMutation();
   const [reviewBookingApi] = useReviewBookingMutation();
-  const [uploadImageApi]          = useUploadImageMutation();
-  const [generateDescriptionApi] = useGenerateRoomDescriptionMutation();
-  const [pendingFile, setPendingFile]     = useState(null); // { file: File, previewUrl: string }
-  const [saving, setSaving]               = useState(false);
-  const [aiLoading, setAiLoading]         = useState(false);
-  const [customFacility, setCustomFacility] = useState("");
 
   const processedBookings = useMemo(() => {
     const filtered = bookings.filter((b) => {
@@ -134,122 +91,6 @@ const Admin = () => {
     else antdMsg.success(text);
   };
 
-  const handleOpenAdd = () => { setEditingId(null); setFormValues(EMPTY_FORM); setPendingFile(null); setCustomFacility(""); setIsModalOpen(true); };
-  const handleOpenEdit = (room) => {
-    setEditingId(room.id);
-    setPendingFile(null);
-    setCustomFacility("");
-    setFormValues({
-      roomImg:    room.roomImg    ?? "",
-      title:      room.title     ?? "",
-      desc:       room.desc      ?? "",
-      facilities: room.facilities ?? [],
-      price: {
-        morning:   String(room.price?.morning   ?? ""),
-        afternoon: String(room.price?.afternoon ?? ""),
-        night:     String(room.price?.night     ?? ""),
-      },
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleGenerateDescription = async () => {
-    if (!formValues.title.trim()) { showMsg("請先填入場地名稱", "warning"); return; }
-    setAiLoading(true);
-    try {
-      let roomImg = formValues.roomImg || "";
-      // 有本地待上傳的圖片時，先上傳取得 URL
-      if (pendingFile && !roomImg) {
-        const formData = new FormData();
-        formData.append("file", pendingFile.file);
-        const uploadRes = await uploadImageApi({ body: formData }).unwrap();
-        roomImg = uploadRes.data?.url || "";
-        setFormValues((prev) => ({ ...prev, roomImg }));
-        setPendingFile(null);
-      }
-      const res = await generateDescriptionApi({
-        roomDescriptionRequest: { title: formValues.title, roomImg },
-      }).unwrap();
-      if (!res.success) {
-        showMsg(res.message || "AI 生成失敗", "error");
-        return;
-      }
-      const desc = res.data?.description;
-      if (desc) {
-        setFormValues((prev) => ({ ...prev, desc }));
-        showMsg("AI 已自動生成場地說明", "success");
-      } else {
-        showMsg("AI 未能產出說明，請手動填寫", "warning");
-      }
-    } catch (err) {
-      console.error('[AI描述] err:', err);
-      showMsg(err?.data?.message || err?.message || "AI 生成失敗，請稍後再試", "error");
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!formValues.title.trim()) { showMsg("場地名稱為必填", "warning"); return; }
-    setSaving(true);
-    try {
-      let roomImg = formValues.roomImg || undefined;
-      if (pendingFile) {
-        const formData = new FormData();
-        formData.append("file", pendingFile.file);
-        const res = await uploadImageApi({ body: formData }).unwrap();
-        roomImg = res.data?.url || undefined;
-      }
-      const roomCreateRequest = {
-        title:      formValues.title,
-        roomImg,
-        desc:       formValues.desc       || undefined,
-        facilities: formValues.facilities.length > 0 ? formValues.facilities : undefined,
-        price: {
-          morning:   Number(formValues.price.morning)   || undefined,
-          afternoon: Number(formValues.price.afternoon) || undefined,
-          night:     Number(formValues.price.night)     || undefined,
-        },
-      };
-      if (editingId) {
-        await updateRoomApi({ id: editingId, roomCreateRequest }).unwrap();
-        showMsg("場地已更新");
-      } else {
-        await createRoomApi({ roomCreateRequest }).unwrap();
-        showMsg("場地已新增");
-      }
-      setIsModalOpen(false);
-      setPendingFile(null);
-      refetchRooms();
-    } catch (err) {
-      showMsg(err?.data?.message || "操作失敗", "error");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    try {
-      await deleteRoomApi({ id }).unwrap();
-      showMsg("場地已刪除");
-      refetchRooms();
-    } catch (err) {
-      showMsg(err?.data?.message || "刪除失敗", "error");
-    }
-  };
-
-  const handleBatchDelete = async () => {
-    const count = selectedIds.length;
-    try {
-      await deleteRoomsApi({ ids: selectedIds }).unwrap();
-      setSelectedIds([]);
-      showMsg(`已刪除 ${count} 筆場地`);
-      refetchRooms();
-    } catch (err) {
-      showMsg(err?.data?.message || "批次刪除失敗", "error");
-    }
-  };
-
   const handleReview = async (id, status) => {
     try {
       await reviewBookingApi({ id, bookingReviewRequest: { status } }).unwrap();
@@ -260,23 +101,7 @@ const Admin = () => {
     }
   };
 
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    if (name.startsWith("price.")) {
-      const key = name.split(".")[1];
-      setFormValues((prev) => ({ ...prev, price: { ...prev.price, [key]: value } }));
-    } else {
-      setFormValues((prev) => ({ ...prev, [name]: value }));
-    }
-  };
-
-  const toggleSelect = (id) =>
-    setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
-
   // ── Pagination ───────────────────────────────────────────────
-  const roomTotalPages = Math.ceil(rooms.length / roomRowsPerPage) || 1;
-  const pagedRooms     = rooms.slice(roomPage * roomRowsPerPage, roomPage * roomRowsPerPage + roomRowsPerPage);
-
   const totalPages    = Math.ceil(processedBookings.length / bookingRowsPerPage) || 1;
   const pagedBookings = processedBookings.slice(
     bookingPage * bookingRowsPerPage,
@@ -344,211 +169,10 @@ const Admin = () => {
           ))}
         </div>
 
-        {/* ════════════ Tab 0：場地管理 ════════════ */}
-        {activeTab === 0 && (
-          <div key="tab-rooms" className="page-enter">
-            {/* Toolbar */}
-            <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "center", gap: isMobile ? 10 : 0, marginBottom: 24 }}>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <div style={{ position: "relative", flex: isMobile ? 1 : "none" }}>
-                  <SearchIcon style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: 16 }} />
-                  <input
-                    placeholder="搜尋場地名稱"
-                    value={filter}
-                    onChange={(e) => { setFilter(e.target.value); if (!e.target.value) { setRoomKeyword(""); setRoomPage(0); } }}
-                    onKeyDown={(e) => { if (e.key === "Enter") { setRoomKeyword(filter); setRoomPage(0); } }}
-                    style={{
-                      paddingLeft: 34, paddingRight: filter ? 30 : 12, height: 34,
-                      border: "1px solid var(--border)", borderRadius: 7,
-                      fontSize: 13, fontFamily: "var(--font-sans)",
-                      background: "var(--surface)", color: "var(--text)", outline: "none",
-                      width: isMobile ? "100%" : 220,
-                    }}
-                  />
-                  {filter && (
-                    <button
-                      onClick={() => { setFilter(""); setRoomKeyword(""); setRoomPage(0); }}
-                      style={{
-                        position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
-                        border: "none", background: "none", cursor: "pointer", padding: 0,
-                        color: "var(--text-muted)", fontSize: 15, lineHeight: 1, display: "flex", alignItems: "center",
-                      }}
-                      title="清除搜尋"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-                <button
-                  onClick={() => { setRoomKeyword(filter); setRoomPage(0); }}
-                  className="room-book-btn"
-                  style={{ padding: "7px 16px" }}
-                >
-                  搜尋
-                </button>
-              </div>
-
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  onClick={handleOpenAdd}
-                  style={{ padding: "7px 18px", background: "var(--accent)", color: "white", border: "none", borderRadius: 7, fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "var(--font-sans)", transition: "background 0.15s" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-hover)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "var(--accent)"; }}
-                >
-                  ＋ 新增場地
-                </button>
-                <button
-                  disabled={selectedIds.length === 0}
-                  onClick={handleBatchDelete}
-                  style={{
-                    padding: "7px 16px", background: "transparent",
-                    color: selectedIds.length === 0 ? "var(--text-muted)" : "oklch(0.42 0.14 15)",
-                    border: `1px solid ${selectedIds.length === 0 ? "var(--border)" : "oklch(0.78 0.1 15)"}`,
-                    borderRadius: 7, fontSize: 13,
-                    cursor: selectedIds.length === 0 ? "not-allowed" : "pointer",
-                    fontFamily: "var(--font-sans)", transition: "all 0.15s",
-                  }}
-                >
-                  批次刪除{selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}
-                </button>
-              </div>
-            </div>
-
-            {/* Room Cards */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {roomsLoading && (
-                <div style={{ textAlign: "center", padding: "48px 0", color: "var(--text-muted)", fontSize: 13 }}>載入中…</div>
-              )}
-              {!roomsLoading && pagedRooms.map((room, idx) => (
-                <div
-                  key={room.id}
-                  style={{
-                    background: "var(--surface)", border: "1px solid var(--border-light)",
-                    borderRadius: "var(--r)", padding: 20, display: "flex", gap: 20,
-                    alignItems: "flex-start",
-                    animation: `fadeUp 0.4s ease ${idx * 0.05}s both`,
-                    transition: "border-color 0.15s, box-shadow 0.15s",
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "var(--shadow-md)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border-light)"; e.currentTarget.style.boxShadow = "none"; }}
-                >
-                  {/* Checkbox */}
-                  <div style={{ paddingTop: 3 }}>
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(room.id)}
-                      onChange={() => toggleSelect(room.id)}
-                      style={{ width: 15, height: 15, cursor: "pointer", accentColor: "var(--accent)" }}
-                    />
-                  </div>
-
-                  {/* Thumbnail - hidden on mobile */}
-                  {!isMobile && (
-                    <div style={{ width: 160, height: 116, borderRadius: 8, overflow: "hidden", flexShrink: 0, background: "var(--bg)" }}>
-                      {room.roomImg && (
-                        <img src={room.roomImg} alt={room.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                      )}
-                    </div>
-                  )}
-
-                  {/* Info */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
-                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", marginTop: 6, flexShrink: 0 }} />
-                      <div style={{ fontFamily: "var(--font-serif)", fontSize: 15, fontWeight: 500, letterSpacing: "0.02em", color: "var(--text)" }}>
-                        {room.title}
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 12.5, color: "var(--text-secondary)", marginBottom: 14, marginLeft: 14, lineHeight: 1.6 }}>
-                      {room.desc}
-                    </div>
-
-                    {/* Price grid */}
-                    <div style={{
-                      display: "grid", gridTemplateColumns: "repeat(3, 1fr)",
-                      gap: 1, maxWidth: 300, background: "var(--border-light)",
-                      borderRadius: 8, overflow: "hidden",
-                    }}>
-                      {[
-                        { label: "上午",   key: "morning",   accent: false },
-                        { label: "下午",   key: "afternoon", accent: true  },
-                        { label: "晚上",   key: "night",     accent: false },
-                      ].map(({ label, key, accent }) => (
-                        <div key={key} style={{ padding: "8px 12px", textAlign: "center", background: accent ? "var(--accent-light)" : "var(--surface)" }}>
-                          <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 2 }}>{label}</div>
-                          <div style={{ fontSize: 13, fontWeight: 500, color: accent ? "var(--accent)" : "var(--text)" }}>
-                            NT$ {room.price?.[key] || 0}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
-                    <button
-                      onClick={() => handleOpenEdit(room)}
-                      style={{ padding: "6px 14px", background: "transparent", border: "1px solid var(--border)", borderRadius: 7, fontSize: 12, color: "var(--text-secondary)", cursor: "pointer", fontFamily: "var(--font-sans)", transition: "all 0.15s" }}
-                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.color = "var(--accent)"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-secondary)"; }}
-                    >
-                      編輯
-                    </button>
-                    <button
-                      onClick={() => handleDelete(room.id)}
-                      style={{ padding: "6px 14px", background: "transparent", border: "1px solid oklch(0.88 0.06 15)", borderRadius: 7, fontSize: 12, color: "oklch(0.50 0.15 15)", cursor: "pointer", fontFamily: "var(--font-sans)", transition: "background 0.15s" }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = "oklch(0.97 0.03 15)"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-                    >
-                      刪除
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              {!roomsLoading && roomsError && (
-                <div style={{ textAlign: "center", padding: "52px 0", color: "oklch(0.50 0.14 15)", fontSize: 13 }}>
-                  場地資料載入失敗，請重新整理頁面
-                </div>
-              )}
-              {!roomsLoading && !roomsError && rooms.length === 0 && (
-                <div style={{ textAlign: "center", padding: "52px 0", color: "var(--text-muted)", fontSize: 14 }}>
-                  尚無場地資料
-                </div>
-              )}
-            </div>
-
-            {/* Room Pagination */}
-            {rooms.length > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 20, fontSize: 12, color: "var(--text-muted)" }}>
-                <span>
-                  共 {rooms.length} 筆，第 {roomPage * roomRowsPerPage + 1}–{Math.min((roomPage + 1) * roomRowsPerPage, rooms.length)} 筆
-                </span>
-                <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
-                  <span style={{ marginRight: 4 }}>每頁：</span>
-                  <select
-                    value={roomRowsPerPage}
-                    onChange={(e) => { setRoomRowsPerPage(Number(e.target.value)); setRoomPage(0); }}
-                    style={{ border: "1px solid var(--border)", borderRadius: 6, padding: "3px 6px", fontSize: 12, fontFamily: "var(--font-sans)", background: "var(--surface)", color: "var(--text)", outline: "none", marginRight: 8 }}
-                  >
-                    {[5, 10, 20].map((n) => <option key={n} value={n}>{n} 筆</option>)}
-                  </select>
-                  <button className="pg-btn" disabled={roomPage === 0} onClick={() => setRoomPage(0)}>«</button>
-                  <button className="pg-btn" disabled={roomPage === 0} onClick={() => setRoomPage((p) => p - 1)}>‹</button>
-                  {Array.from({ length: roomTotalPages }, (_, i) => i)
-                    .filter((i) => Math.abs(i - roomPage) <= 2)
-                    .map((i) => (
-                      <button key={i} className={`pg-btn${i === roomPage ? " active" : ""}`} onClick={() => setRoomPage(i)}>
-                        {i + 1}
-                      </button>
-                    ))}
-                  <button className="pg-btn" disabled={roomPage >= roomTotalPages - 1} onClick={() => setRoomPage((p) => p + 1)}>›</button>
-                  <button className="pg-btn" disabled={roomPage >= roomTotalPages - 1} onClick={() => setRoomPage(roomTotalPages - 1)}>»</button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        {/* ════════════ Tab 0：場地管理（常駐掛載，切換分頁時保留搜尋字／頁碼／勾選） ════════════ */}
+        <div hidden={activeTab !== 0}>
+          <RoomManager roomKeyword={roomKeyword} onKeywordChange={setRoomKeyword} />
+        </div>
 
         {/* ════════════ Tab 1：預約審核 ════════════ */}
         {activeTab === 1 && (
@@ -722,251 +346,6 @@ const Admin = () => {
           </div>
         )}
       </div>
-
-      {/* ── 新增 / 編輯場地 Dialog ──────────────────────────────────── */}
-      <Dialog
-        open={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{ sx: { borderRadius: "10px", fontFamily: "var(--font-sans)" } }}
-      >
-        <DialogTitle sx={{ fontFamily: "var(--font-serif)", fontWeight: 500, fontSize: 17, color: "var(--text)", pb: 1 }}>
-          {editingId ? "編輯場地" : "新增場地"}
-        </DialogTitle>
-        <DialogContent>
-          <DialogContentText component="div">
-            <div style={{ display: "flex", flexDirection: "column", gap: 14, paddingTop: 8 }}>
-              {/* 場地圖片上傳 */}
-              <div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>場地圖片</div>
-                <div style={{ position: "relative" }}>
-                  <Upload
-                    accept="image/*"
-                    showUploadList={false}
-                    rootClassName="room-img-upload"
-                    customRequest={({ file, onSuccess }) => {
-                      const previewUrl = URL.createObjectURL(file);
-                      setPendingFile({ file, previewUrl });
-                      onSuccess({});
-                    }}
-                  >
-                    <Spin spinning={saving && !!pendingFile}>
-                      {(pendingFile?.previewUrl || formValues.roomImg) ? (
-                        <div style={{ position: "relative", width: "100%", cursor: "pointer", borderRadius: 8, overflow: "hidden" }}>
-                          <img
-                            src={pendingFile?.previewUrl || formValues.roomImg}
-                            alt="場地圖片"
-                            style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }}
-                          />
-                          <div style={{
-                            position: "absolute", inset: 0, background: "rgba(0,0,0,0)",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            transition: "background 0.2s",
-                            fontSize: 13, color: "white", fontFamily: "var(--font-sans)", fontWeight: 500,
-                          }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.45)"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0)"; }}
-                          >
-                            點擊更換圖片
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{
-                          width: "100%", height: 120, border: "1.5px dashed var(--border)",
-                          borderRadius: 8, display: "flex", flexDirection: "column",
-                          alignItems: "center", justifyContent: "center", gap: 6,
-                          cursor: "pointer", background: "var(--bg)",
-                          transition: "border-color 0.15s",
-                          fontFamily: "var(--font-sans)",
-                        }}
-                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; }}
-                        >
-                          <span style={{ fontSize: 22, opacity: 0.4 }}>↑</span>
-                          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>點擊或拖曳上傳圖片</span>
-                          <span style={{ fontSize: 11, color: "var(--text-muted)", opacity: 0.7 }}>JPG、PNG、WebP</span>
-                        </div>
-                      )}
-                    </Spin>
-                  </Upload>
-
-                  {/* × 移除按鈕：疊在圖片右上角，與 Upload 分離避免觸發 file picker */}
-                  {(pendingFile?.previewUrl || formValues.roomImg) && (
-                    <button
-                      type="button"
-                      onClick={() => { setFormValues((prev) => ({ ...prev, roomImg: "" })); setPendingFile(null); }}
-                      style={{
-                        position: "absolute", top: 8, right: 8,
-                        width: 26, height: 26, borderRadius: "50%",
-                        border: "none", background: "rgba(0,0,0,0.55)",
-                        color: "white", fontSize: 15, lineHeight: 1,
-                        cursor: "pointer", display: "flex", alignItems: "center",
-                        justifyContent: "center", zIndex: 2,
-                        transition: "background 0.15s",
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.8)"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.55)"; }}
-                      title="移除圖片"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              </div>
-              <TextField size="small" label="場地名稱 *" name="title"
-                value={formValues.title} onChange={handleFormChange} fullWidth sx={fieldSx} />
-              {/* 場地說明 + AI 按鈕 */}
-              <div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>場地說明</div>
-                  <button
-                    type="button"
-                    onClick={handleGenerateDescription}
-                    disabled={aiLoading}
-                    title={!formValues.title.trim() ? "請先填入場地名稱" : "根據標題與圖片，AI 自動生成場地說明"}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 5,
-                      padding: "4px 11px", borderRadius: 6,
-                      border: "1px solid var(--accent)",
-                      background: aiLoading ? "var(--accent-light)" : "transparent",
-                      color: aiLoading ? "var(--text-muted)" : "var(--accent)",
-                      fontSize: 11, fontFamily: "var(--font-sans)",
-                      cursor: aiLoading ? "not-allowed" : "pointer",
-                      transition: "all 0.15s",
-                    }}
-                    onMouseEnter={(e) => { if (!aiLoading) e.currentTarget.style.background = "var(--accent-light)"; }}
-                    onMouseLeave={(e) => { if (!aiLoading) e.currentTarget.style.background = "transparent"; }}
-                  >
-                    {aiLoading
-                      ? <><Spin size="small" style={{ marginRight: 2 }} /> AI 生成中…</>
-                      : <>✦ AI 生成場地說明</>
-                    }
-                  </button>
-                </div>
-                <TextField size="small" name="desc"
-                  value={formValues.desc} onChange={handleFormChange} fullWidth multiline rows={2} sx={fieldSx} />
-              </div>
-
-              {/* ── 場地標籤 ───────────────────────────────────── */}
-              <div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>場地標籤</div>
-
-                {/* 已選標籤（accent 風格，有 × 可移除） */}
-                {formValues.facilities.length > 0 && (
-                  <div style={{
-                    display: "flex", flexWrap: "wrap", gap: 6,
-                    padding: "8px 10px", background: "var(--bg)",
-                    borderRadius: 8, marginBottom: 8,
-                    border: "1px solid var(--border-light)",
-                  }}>
-                    {formValues.facilities.map((f) => (
-                      <span key={f} style={{
-                        display: "inline-flex", alignItems: "center", gap: 4,
-                        padding: "3px 8px 3px 10px", borderRadius: 20,
-                        background: "var(--accent-light)", border: "1px solid var(--accent)",
-                        color: "var(--accent)", fontSize: 11, fontFamily: "var(--font-sans)",
-                      }}>
-                        {f}
-                        <button
-                          type="button"
-                          onClick={() => setFormValues((prev) => ({ ...prev, facilities: prev.facilities.filter((x) => x !== f) }))}
-                          style={{
-                            background: "none", border: "none", cursor: "pointer",
-                            padding: "0 2px", color: "var(--accent)", fontSize: 13, lineHeight: 1,
-                            display: "flex", alignItems: "center", opacity: 0.7,
-                          }}
-                          onMouseEnter={(e) => { e.currentTarget.style.opacity = "1"; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.opacity = "0.7"; }}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* 自訂輸入 */}
-                <div style={{ display: "flex", gap: 6 }}>
-                  <input
-                    placeholder="輸入標籤"
-                    value={customFacility}
-                    onChange={(e) => setCustomFacility(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        const v = customFacility.trim();
-                        if (v && !formValues.facilities.includes(v)) {
-                          setFormValues((prev) => ({ ...prev, facilities: [...prev.facilities, v] }));
-                        }
-                        setCustomFacility("");
-                      }
-                    }}
-                    style={{
-                      flex: 1, height: 34, padding: "0 10px",
-                      border: "1px solid var(--border)", borderRadius: 7,
-                      fontSize: 12, fontFamily: "var(--font-sans)",
-                      background: "var(--surface)", color: "var(--text)", outline: "none",
-                    }}
-                    onFocus={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; }}
-                    onBlur={(e)  => { e.currentTarget.style.borderColor = "var(--border)"; }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const v = customFacility.trim();
-                      if (v && !formValues.facilities.includes(v)) {
-                        setFormValues((prev) => ({ ...prev, facilities: [...prev.facilities, v] }));
-                      }
-                      setCustomFacility("");
-                    }}
-                    style={{
-                      padding: "0 14px", height: 34, background: "var(--accent)",
-                      border: "none", borderRadius: 7, color: "white",
-                      fontSize: 12, cursor: "pointer", fontFamily: "var(--font-sans)",
-                      transition: "background 0.15s",
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-hover)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = "var(--accent)"; }}
-                  >
-                    新增
-                  </button>
-                </div>
-              </div>
-
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: -6 }}>場地費用（NT$）</div>
-              <Grid container spacing={1}>
-                {[["上午", "morning"], ["下午", "afternoon"], ["晚上", "night"]].map(([label, key]) => (
-                  <Grid item xs={4} key={key}>
-                    <TextField size="small" type="number" label={label} name={`price.${key}`}
-                      value={formValues.price[key]} onChange={handleFormChange} fullWidth sx={fieldSx} />
-                  </Grid>
-                ))}
-              </Grid>
-            </div>
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions sx={{ p: 2.5, gap: 1 }}>
-          <button
-            onClick={() => setIsModalOpen(false)}
-            style={{ padding: "8px 20px", background: "transparent", border: "1px solid var(--border)", borderRadius: 7, fontSize: 13, color: "var(--text-secondary)", cursor: "pointer", fontFamily: "var(--font-sans)", transition: "all 0.15s" }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.color = "var(--accent)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-secondary)"; }}
-          >
-            取消
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            style={{ padding: "8px 20px", background: "var(--accent)", border: "none", borderRadius: 7, fontSize: 13, fontWeight: 500, color: "white", cursor: saving ? "not-allowed" : "pointer", fontFamily: "var(--font-sans)", transition: "background 0.15s", opacity: saving ? 0.7 : 1 }}
-            onMouseEnter={(e) => { if (!saving) e.currentTarget.style.background = "var(--accent-hover)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "var(--accent)"; }}
-          >
-            {saving ? "儲存中…" : "儲存"}
-          </button>
-        </DialogActions>
-      </Dialog>
-
     </>
   );
 };

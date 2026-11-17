@@ -1,0 +1,31 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [main, "stage/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm test -- --watchAll=false
+
+      # GitHub Actions 會自動設 CI=true，CRA 在 CI=true 時會把 ESLint 警告當成錯誤
+      - name: Build
+        run: npm run build

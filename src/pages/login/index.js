@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { SESSION_EXPIRED_MESSAGE } from "@/services/baseQueryWithAuth";
 import { useDispatch } from "react-redux";
 import { IconButton, InputAdornment, OutlinedInput } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
@@ -24,7 +25,10 @@ const Login = () => {
   const [account, setAccount]               = useState("");
   const [password, setPassword]             = useState("");
   const [showPassword, setShowPassword]     = useState(false);
-  const [errorMsg, setErrorMsg]             = useState("");
+  const [searchParams]                      = useSearchParams();
+  const [errorMsg, setErrorMsg]             = useState(
+    searchParams.get("expired") ? SESSION_EXPIRED_MESSAGE : ""
+  );
 
   const handleRoleChange = (role) => {
     setLoginRole(role);

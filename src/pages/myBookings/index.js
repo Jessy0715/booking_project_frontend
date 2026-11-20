@@ -61,7 +61,7 @@ const MyBookings = () => {
   const bookings = (data?.data ?? []).map(b => ({ ...b, status: b.status?.toLowerCase() }));
 
   // ── 取消預約 ────────────────────────────────────────────────
-  const [cancelBookingApi] = useCancelBookingMutation();
+  const [cancelBookingApi, { isLoading: isCancelling }] = useCancelBookingMutation();
 
   const handleCancel = async (bookingId) => {
     try {
@@ -125,10 +125,11 @@ const MyBookings = () => {
       <div style={{ maxWidth: 860, margin: "0 auto", padding: isMobile ? "20px 16px" : "36px 40px", fontFamily: "var(--font-sans)" }}>
 
         {/* ── Status Tabs ─────────────────────────────────────────── */}
-        <div style={{
+        <div role="group" aria-label="預約狀態篩選" style={{
           display: "flex", gap: 4, padding: 4,
           background: "var(--bg)", borderRadius: 10, marginBottom: 28,
-          width: "fit-content", boxShadow: "var(--shadow-sm)",
+          width: "fit-content", maxWidth: "100%", overflowX: "auto",
+          boxShadow: "var(--shadow-sm)",
           border: "1px solid var(--border-light)",
         }}>
           {TABS.map(({ key, label }) => {
@@ -138,8 +139,10 @@ const MyBookings = () => {
               <button
                 key={key}
                 onClick={() => setActiveTab(key)}
+                aria-pressed={isActive}
                 style={{
-                  padding: "7px 18px", border: "none", borderRadius: 7,
+                  padding: isMobile ? "7px 10px" : "7px 18px", border: "none", borderRadius: 7,
+                  whiteSpace: "nowrap", flexShrink: 0,
                   background: isActive ? "var(--surface)" : "transparent",
                   color: isActive ? "var(--text)" : "var(--text-muted)",
                   fontWeight: isActive ? 500 : 400,
@@ -179,6 +182,14 @@ const MyBookings = () => {
             borderRadius: "var(--r)",
           }}>
             預約紀錄載入失敗，請重新整理頁面
+            <div style={{ marginTop: 16 }}>
+              <button
+                onClick={() => refetch()}
+                style={{ padding: "8px 20px", background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: 7, fontSize: 13, cursor: "pointer", fontFamily: "var(--font-sans)" }}
+              >
+                重試
+              </button>
+            </div>
           </div>
         ) : filtered.length === 0 ? (
           <div style={{
@@ -281,9 +292,10 @@ const MyBookings = () => {
                       </button>
                       <button
                         onClick={() => handleCancel(b.id)}
-                        style={{ padding: "5px 14px", background: "oklch(0.42 0.14 15)", border: "none", borderRadius: 6, fontSize: 12, color: "white", cursor: "pointer", fontFamily: "var(--font-sans)", fontWeight: 500 }}
+                        disabled={isCancelling}
+                        style={{ padding: "5px 14px", background: "oklch(0.42 0.14 15)", border: "none", borderRadius: 6, fontSize: 12, color: "white", cursor: isCancelling ? "not-allowed" : "pointer", opacity: isCancelling ? 0.6 : 1, fontFamily: "var(--font-sans)", fontWeight: 500 }}
                       >
-                        確認取消
+                        {isCancelling ? "取消中…" : "確認取消"}
                       </button>
                     </div>
                   </div>

@@ -4,6 +4,8 @@ import { useSelector } from "react-redux";
 import Header from "@/components/Header";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useSearchBookingsQuery, useCancelBookingMutation } from "@/services/bookingApi.generated";
+import "@/services/bookingTags";
+import CancelBookingDialog from "./components/CancelBookingDialog";
 
 const TIME_SLOT_LABEL = { morning: "上午 09:00–12:00", afternoon: "下午 13:00–17:00", night: "晚上 18:00–21:00" };
 const TIME_SLOT_SHORT = { morning: "上午", afternoon: "下午", night: "晚上" };
@@ -68,7 +70,6 @@ const MyBookings = () => {
       await cancelBookingApi({ id: bookingId }).unwrap();
       setConfirmingId(null);
       showToast("預約已取消");
-      refetch();
     } catch (err) {
       setConfirmingId(null);
       if (err?.status === 403) {
@@ -258,7 +259,7 @@ const MyBookings = () => {
                   {/* 右側：狀態 + 操作 */}
                   <div style={{ display: "flex", flexDirection: isMobile ? "row" : "column", alignItems: isMobile ? "center" : "flex-end", justifyContent: isMobile ? "space-between" : "flex-start", gap: 10, flexShrink: 0 }}>
                     <StatusBadge status={b.status} />
-                    {b.status === "pending" && confirmingId !== b.id && (
+                    {b.status === "pending" && (
                       <button
                         onClick={() => setConfirmingId(b.id)}
                         style={{ padding: "5px 12px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, fontSize: 11, color: "var(--text-muted)", cursor: "pointer", fontFamily: "var(--font-sans)", transition: "all 0.15s" }}
@@ -271,41 +272,19 @@ const MyBookings = () => {
                   </div>
                 </div>
 
-                {/* 取消確認列 */}
-                {confirmingId === b.id && (
-                  <div style={{
-                    padding: "12px 20px",
-                    background: "oklch(0.97 0.02 15)",
-                    borderTop: "1px solid oklch(0.90 0.04 15)",
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    animation: "fadeUp 0.2s ease",
-                  }}>
-                    <span style={{ fontSize: 12, color: "oklch(0.42 0.14 15)" }}>
-                      確定要取消這筆預約？取消後無法復原。
-                    </span>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button
-                        onClick={() => setConfirmingId(null)}
-                        style={{ padding: "5px 14px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, color: "var(--text-secondary)", cursor: "pointer", fontFamily: "var(--font-sans)" }}
-                      >
-                        算了
-                      </button>
-                      <button
-                        onClick={() => handleCancel(b.id)}
-                        disabled={isCancelling}
-                        style={{ padding: "5px 14px", background: "oklch(0.42 0.14 15)", border: "none", borderRadius: 6, fontSize: 12, color: "white", cursor: isCancelling ? "not-allowed" : "pointer", opacity: isCancelling ? 0.6 : 1, fontFamily: "var(--font-sans)", fontWeight: 500 }}
-                      >
-                        {isCancelling ? "取消中…" : "確認取消"}
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             ))}
           </div>
         )}
         </div>
       </div>
+
+      <CancelBookingDialog
+        open={confirmingId !== null}
+        isLoading={isCancelling}
+        onClose={() => setConfirmingId(null)}
+        onConfirm={() => handleCancel(confirmingId)}
+      />
 
       {/* ── Toast ────────────────────────────────────────────────── */}
       {toast.show && (

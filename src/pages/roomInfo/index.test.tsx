@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { renderWithProviders } from "@/utils/renderWithProviders";
 import RoomInfo from "./index";
 
@@ -31,5 +31,14 @@ describe("RoomInfo 頁 smoke test", () => {
     expect(screen.getByText("精選空間", { selector: "span" })).toBeInTheDocument();
     expect(screen.getByText("自然光棚 A")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "前往預約" })).toBeInTheDocument();
+  });
+
+  it("容納人數輸入負數時顯示錯誤並停用篩選按鈕", () => {
+    renderWithProviders(<RoomInfo />, { route: "/roomInfo" });
+
+    fireEvent.change(screen.getByLabelText("容納人數下限"), { target: { value: "-3" } });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("請輸入正整數");
+    expect(screen.getByRole("button", { name: "篩選" })).toBeDisabled();
   });
 });

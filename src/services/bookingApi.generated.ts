@@ -29,6 +29,8 @@ const injectedRtkApi = api.injectEndpoints({
         url: `/api/rooms`,
         params: {
           keyword: queryArg.keyword,
+          minCapacity: queryArg.minCapacity,
+          facility: queryArg.facility,
           page: queryArg.page,
           pageSize: queryArg.pageSize,
         },
@@ -170,6 +172,10 @@ export type SearchRoomsApiResponse = /** status 200 查詢成功 */ Blob;
 export type SearchRoomsApiArg = {
   /** 關鍵字，只對場地名稱做模糊比對，不分大小寫。空白或省略視為不篩選。 */
   keyword?: string;
+  /** 容納人數下限，只回 capacity 大於等於此值的場地。必須為正整數，省略視為不篩選。 */
+  minCapacity?: number;
+  /** 設備名稱，須完整符合場地設備清單中的某一項（不分大小寫）。空白或省略視為不篩選。 */
+  facility?: string;
   /** 第幾頁，從 1 開始。超出總頁數回空陣列，不是錯誤。 */
   page?: number;
   /** 每頁幾筆，上限 100（超過會被夾到 100）。實際生效的值見 `pagination.pageSize`。 */

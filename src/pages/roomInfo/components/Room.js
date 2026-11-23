@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
-import { Skeleton, Alert } from "@mui/material";
+import { Skeleton, Alert, Button } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useSearchRoomsQuery } from "@/services/bookingApi.generated";
+import { normalizeFacility, parseMinCapacity } from "@/utils/roomFilters";
 
 const PAGE_SIZE = 5;
 
@@ -29,18 +30,27 @@ const getMinPrice = (room) => {
 const Room = () => {
   const navigate = useNavigate();
   const { isMobile } = useBreakpoint();
-  const { data, isLoading, isError } = useSearchRoomsQuery({ pageSize: 100 });
-  const rooms = useMemo(() => data?.data ?? [], [data]);
   const [currentPage, setCurrentPage] = useState(1);
 
   // ── 篩選 / 排序 state ────────────────────────────────────────────
-  const [keyword,     setKeyword]     = useState("");
-  const [minCapacity, setMinCapacity] = useState(0);
-  const [sortBy,      setSortBy]      = useState("default");
+  const [keyword, setKeyword] = useState("");
+  const [sortBy,  setSortBy]  = useState("default");
+  // 容納人數、設備：輸入中的草稿與「已套用」的值分開，按下篩選才送 API
+  const [capacityDraft, setCapacityDraft] = useState("");
+  const [facilityDraft, setFacilityDraft] = useState("");
+  const [applied, setApplied] = useState({ minCapacity: undefined, facility: undefined });
+
+  const { data, isLoading, isFetching, isError, refetch } = useSearchRoomsQuery({
+    pageSize: 100,
+    minCapacity: applied.minCapacity,
+    facility: applied.facility,
+  });
+  const rooms = useMemo(() => data?.data ?? [], [data]);
+
+  const capacityCheck = useMemo(() => parseMinCapacity(capacityDraft), [capacityDraft]);
 
   // 篩選條件改變時回到第 1 頁
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { setCurrentPage(1); }, [keyword, minCapacity, sortBy]);
+  useEffect(() => { setCurrentPage(1); }, [keyword, sortBy, applied]);
 
   // ── 前端篩選 + 排序 ──────────────────────────────────────────────
   const filteredRooms = useMemo(() => {
@@ -53,16 +63,12 @@ const Room = () => {
       );
     }
 
-    if (minCapacity > 0) {
-      result = result.filter((r) => (r.capacity || 0) >= minCapacity);
-    }
-
     if (sortBy === "price_asc")      result.sort((a, b) => getMinPrice(a) - getMinPrice(b));
     else if (sortBy === "price_desc") result.sort((a, b) => getMinPrice(b) - getMinPrice(a));
     else if (sortBy === "cap_desc")   result.sort((a, b) => (b.capacity || 0) - (a.capacity || 0));
 
     return result;
-  }, [rooms, keyword, minCapacity, sortBy]);
+  }, [rooms, keyword, sortBy]);
 
   const totalPages = Math.ceil(filteredRooms.length / PAGE_SIZE) || 1;
   const pagedRooms = filteredRooms.slice(
@@ -70,12 +76,24 @@ const Room = () => {
     currentPage * PAGE_SIZE,
   );
 
-  const isFiltered = keyword.trim() !== "" || minCapacity > 0 || sortBy !== "default";
+  const isFiltered =
+    keyword.trim() !== "" ||
+    applied.minCapacity !== undefined ||
+    applied.facility !== undefined ||
+    sortBy !== "default";
+
+  const handleApplyFilters = (e) => {
+    e.preventDefault();
+    if (capacityCheck.error) return;
+    setApplied({ minCapacity: capacityCheck.value, facility: normalizeFacility(facilityDraft) });
+  };
 
   const clearFilters = () => {
     setKeyword("");
-    setMinCapacity(0);
     setSortBy("default");
+    setCapacityDraft("");
+    setFacilityDraft("");
+    setApplied({ minCapacity: undefined, facility: undefined });
   };
 
   const handlePageChange = (page) => {
@@ -103,12 +121,6 @@ const Room = () => {
     </div>
   );
 
-  if (isError) return (
-    <div style={{ padding: "40px 24px" }}>
-      <Alert severity="error">無法連線至伺服器，請確認後端是否啟動。</Alert>
-    </div>
-  );
-
   return (
     <div style={{ maxWidth: 880, margin: "0 auto", padding: "32px 24px 64px" }}>
 
@@ -124,7 +136,7 @@ const Room = () => {
       </div>
 
       {/* ── 篩選工具列 ──────────────────────────────────────────── */}
-      <div style={{
+      <form onSubmit={handleApplyFilters} style={{
         display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap",
         padding: isMobile ? "12px" : "14px 16px",
         background: "var(--surface)",
@@ -135,6 +147,7 @@ const Room = () => {
       }}>
         {/* 關鍵字搜尋 */}
         <input
+          aria-label="搜尋空間名稱或說明"
           placeholder="搜尋空間名稱或說明…"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
@@ -145,20 +158,50 @@ const Room = () => {
           }}
         />
 
-        {/* 容量篩選 */}
-        <select
-          value={minCapacity}
-          onChange={(e) => setMinCapacity(Number(e.target.value))}
-          style={{ ...selectStyle, flex: "0 0 120px" }}
+        {/* 容納人數下限 */}
+        <input
+          aria-label="容納人數下限"
+          aria-invalid={Boolean(capacityCheck.error)}
+          inputMode="numeric"
+          placeholder="最少人數"
+          value={capacityDraft}
+          onChange={(e) => setCapacityDraft(e.target.value)}
+          style={{
+            ...selectStyle, flex: "0 0 100px", padding: "0 12px",
+            borderColor: capacityCheck.error ? "var(--accent)" : "var(--border)",
+          }}
+        />
+
+        {/* 設備 */}
+        <input
+          aria-label="設備名稱"
+          placeholder="設備（如：柔光箱）"
+          value={facilityDraft}
+          onChange={(e) => setFacilityDraft(e.target.value)}
+          style={{ ...selectStyle, flex: "1 1 140px", minWidth: 120, padding: "0 12px" }}
+        />
+
+        <button
+          type="submit"
+          disabled={Boolean(capacityCheck.error) || isFetching}
+          style={{
+            height: 34, padding: "0 16px", background: "var(--accent)", color: "var(--surface)",
+            border: "none", borderRadius: 7, fontSize: 13, cursor: "pointer",
+            fontFamily: "var(--font-sans)",
+          }}
         >
-          <option value={0}>不限容量</option>
-          <option value={4}>4 人以上</option>
-          <option value={6}>6 人以上</option>
-          <option value={10}>10 人以上</option>
-        </select>
+          篩選
+        </button>
+
+        {capacityCheck.error && (
+          <span role="alert" style={{ flexBasis: "100%", fontSize: 12, color: "var(--accent)" }}>
+            {capacityCheck.error}
+          </span>
+        )}
 
         {/* 排序 */}
         <select
+          aria-label="排序"
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
           style={{ ...selectStyle, flex: "0 0 140px" }}
@@ -172,6 +215,7 @@ const Room = () => {
         {/* 清除篩選 */}
         {isFiltered && (
           <button
+            type="button"
             onClick={clearFilters}
             style={{
               height: 34, padding: "0 14px", background: "transparent",
@@ -189,13 +233,30 @@ const Room = () => {
         {/* 結果筆數 */}
         <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: "auto" }}>
           {isFiltered
-            ? `篩選後 ${filteredRooms.length} / ${rooms.length} 筆`
+            ? `符合 ${filteredRooms.length} 間`
             : `共 ${rooms.length} 間場地`}
         </span>
-      </div>
+      </form>
+
+      {/* ── 載入失敗 ──────────────────────────────────────────── */}
+      {isError && (
+        <Alert
+          severity="error"
+          sx={{ mb: 2 }}
+          action={<Button color="inherit" size="small" onClick={refetch}>重試</Button>}
+        >
+          無法取得場地資料，請確認後端是否啟動。
+        </Alert>
+      )}
+
+      {isFetching && !isError && (
+        <div role="status" style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>
+          更新中…
+        </div>
+      )}
 
       {/* ── 無結果 ────────────────────────────────────────────── */}
-      {pagedRooms.length === 0 && (
+      {!isError && pagedRooms.length === 0 && (
         <div style={{
           textAlign: "center", padding: "52px 0",
           background: "var(--surface)", border: "1px solid var(--border-light)",

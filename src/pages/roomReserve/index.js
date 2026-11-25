@@ -10,6 +10,7 @@ import dayjs from "dayjs";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useSelector } from "react-redux";
+import BookingSuccess from "./components/BookingSuccess";
 import { useGetRoomOptionsQuery, useGetSlotsQuery, useCreateBookingMutation } from "@/services/bookingApi.generated";
 
 const TIME_SLOT_OPTIONS = [
@@ -44,6 +45,7 @@ const RoomReserve = () => {
   const [notif, setNotif]                   = useState({ open: false, message: "", type: "success" });
   const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [selectedDate, setSelectedDate]     = useState(null);
+  const [bookingSummary, setBookingSummary] = useState(null);
 
   const showNotif = (message, type = "success") => {
     setNotif({ open: true, message, type });
@@ -111,6 +113,13 @@ const RoomReserve = () => {
         },
       }).unwrap();
       refetchSlots();
+      setBookingSummary({
+        roomName: rooms.find(r => r.value === values.roomId)?.label ?? "",
+        date: values.date.format("YYYY-MM-DD"),
+        timeSlotLabel: TIME_SLOT_OPTIONS.find(o => o.value === values.timeSlot)?.label ?? values.timeSlot,
+        userName: values.userName,
+        reason: values.reason || undefined,
+      });
       setIsModalOpen(false);
       form.resetFields();
       setRefreshTrigger(n => n + 1);
@@ -127,6 +136,9 @@ const RoomReserve = () => {
       <div style={{ background: "var(--bg)", minHeight: "100vh", paddingBottom: 80 }}>
         <div style={{ maxWidth: "880px", margin: "0 auto", padding: isMobile ? "16px 12px 0" : "24px 24px 0" }}>
 
+          {bookingSummary ? (
+            <BookingSuccess summary={bookingSummary} onBookAgain={() => setBookingSummary(null)} />
+          ) : (<>
           {/* 返回 */}
           <div style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
             <IconButton onClick={() => navigate(-1)} size="small" sx={{ color: "var(--text-muted)" }}>
@@ -200,6 +212,7 @@ const RoomReserve = () => {
               onDateClick={handleDateClick}
             />
           </div>
+          </>)}
         </div>
       </div>
 

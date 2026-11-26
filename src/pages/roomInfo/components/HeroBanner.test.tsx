@@ -17,4 +17,11 @@ describe("HeroBanner", () => {
     await userEvent.click(screen.getByRole("button", { name: "立即預約" }));
     expect(mockNavigate).toHaveBeenCalledWith("/roomReserve");
   });
+
+  it("點「我的預約」導向我的預約頁", async () => {
+    renderWithProviders(<HeroBanner />);
+
+    await userEvent.click(screen.getByRole("button", { name: "我的預約" }));
+    expect(mockNavigate).toHaveBeenCalledWith("/myBookings");
+  });
 });

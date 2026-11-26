@@ -7,10 +7,6 @@ export const ROOM_LIST_ANCHOR_ID = "room-list";
 const HeroBanner = () => {
   const navigate = useNavigate();
 
-  const handleBrowseRooms = () => {
-    document.getElementById(ROOM_LIST_ANCHOR_ID)?.scrollIntoView({ behavior: "smooth" });
-  };
-
   return (
     <Box
       component="section"
@@ -27,7 +23,7 @@ const HeroBanner = () => {
         backgroundPosition: "center",
       }}
     >
-      <Box sx={{ position: "relative", px: { xs: 3, md: 8 }, py: 5, color: "white", maxWidth: 560 }}>
+      <Box sx={{ position: "relative", px: { xs: 3, md: 8 }, py: 5, color: "white", maxWidth: { xs: "100%", md: 760 } }}>
         <Typography
           component="div"
           sx={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", opacity: 0.75, mb: 1.5 }}
@@ -42,6 +38,7 @@ const HeroBanner = () => {
             fontWeight: 400,
             letterSpacing: "0.06em",
             lineHeight: 1.3,
+            wordBreak: "keep-all", // 中文不在字中間斷行，只在「Lumino」後的空白換行
             mb: 1.5,
           }}
         >
@@ -67,7 +64,7 @@ const HeroBanner = () => {
           </Button>
           <Button
             variant="outlined"
-            onClick={handleBrowseRooms}
+            onClick={() => navigate("/myBookings")}
             sx={{
               minHeight: 44,
               px: 3,
@@ -77,7 +74,7 @@ const HeroBanner = () => {
               "&:hover": { borderColor: "white", background: "rgba(255,255,255,0.12)" },
             }}
           >
-            瀏覽場地
+            我的預約
           </Button>
         </Box>
       </Box>
